@@ -32,13 +32,6 @@ withFilesInDir callback path = do
         (withFilesInDir callback . combine path)
         contents
 
-getFrontMatter :: Text -> (String, Text)
-getFrontMatter text = 
-  if Data.Text.isPrefixOf (pack "---") text then
-    ("", pack "x")
-  else
-    ("", pack "") 
-
 buildProject :: FilePath -> IO ()
 buildProject rootDir = do
   let sourceDir = combine rootDir "src/content"
