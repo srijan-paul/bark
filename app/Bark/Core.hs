@@ -8,7 +8,6 @@ import CMark (commonmarkToHtml)
 import Control.Monad (when)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.IO (readFile, writeFile)
-import GHC.Base (build)
 import System.Directory (createDirectoryIfMissing, doesFileExist, getDirectoryContents)
 import System.FilePath.Posix (combine, dropFileName, replaceDirectory, replaceExtension, takeExtension, (</>))
 
