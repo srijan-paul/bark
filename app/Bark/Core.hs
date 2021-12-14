@@ -4,9 +4,9 @@ module Bark.Core
   )
 where
 
-import CMark (commonmarkToHtml)
+import CMark (commonmarkToHtml, commonmarkToNode)
 import Control.Monad (when)
-import Data.Text (Text, pack, unpack)
+import Data.Text (Text, pack, unpack, isPrefixOf, stripPrefix, stripStart)
 import qualified Data.Text.IO (readFile, writeFile)
 import System.Directory (createDirectoryIfMissing, doesFileExist, listDirectory)
 import System.FilePath.Posix (combine, dropFileName, replaceDirectory, replaceExtension, (</>), isExtensionOf)
@@ -31,6 +31,13 @@ withFilesInDir callback path = do
       mapM_
         (withFilesInDir callback . combine path)
         contents
+
+getFrontMatter :: Text -> (String, Text)
+getFrontMatter text = 
+  if Data.Text.isPrefixOf (pack "---") text then
+    ("", pack "x")
+  else
+    ("", pack "") 
 
 buildProject :: FilePath -> IO ()
 buildProject rootDir = do
