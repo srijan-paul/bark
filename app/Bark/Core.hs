@@ -8,7 +8,7 @@ import CMark (commonmarkToHtml)
 import Control.Monad (when)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.IO (readFile, writeFile)
-import System.Directory (createDirectoryIfMissing, doesFileExist, getDirectoryContents)
+import System.Directory (createDirectoryIfMissing, doesFileExist, listDirectory)
 import System.FilePath.Posix (combine, dropFileName, replaceDirectory, replaceExtension, takeExtension, (</>))
 
 initProject :: FilePath -> IO ()
@@ -28,10 +28,10 @@ withFilesInDir callback path = do
       callback markdown path
     else do
       -- `path` is itself a directory, and needs to be recursed over
-      contents <- getDirectoryContents path
+      contents <- listDirectory path
       mapM_
         (withFilesInDir callback . combine path)
-        (filter (\x -> x /= "." && x /= "..") contents)
+        contents
 
 buildProject :: FilePath -> IO ()
 buildProject rootDir = do
