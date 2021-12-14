@@ -9,7 +9,7 @@ import Control.Monad (when)
 import Data.Text (Text, pack, unpack)
 import qualified Data.Text.IO (readFile, writeFile)
 import System.Directory (createDirectoryIfMissing, doesFileExist, listDirectory)
-import System.FilePath.Posix (combine, dropFileName, replaceDirectory, replaceExtension, takeExtension, (</>))
+import System.FilePath.Posix (combine, dropFileName, replaceDirectory, replaceExtension, (</>), isExtensionOf)
 
 initProject :: FilePath -> IO ()
 initProject rootDir = do
@@ -21,9 +21,8 @@ withFilesInDir :: (Text -> String -> IO ()) -> FilePath -> IO ()
 withFilesInDir _ "" = return ()
 withFilesInDir callback path = do
   isFile <- doesFileExist path
-  let isMarkDown = takeExtension path == ".md"
   if isFile
-    then when (takeExtension path == ".md") $ do
+    then when (isExtensionOf ".md" path) $ do
       markdown <- Data.Text.IO.readFile path
       callback markdown path
     else do
