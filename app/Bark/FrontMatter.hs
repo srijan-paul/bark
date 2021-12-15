@@ -1,4 +1,4 @@
-module Bark.FrontMatter where
+module Bark.FrontMatter (tokenize, Token) where
 
 import Data.Char (isAlphaNum)
 import Data.List (takeWhile)
@@ -19,9 +19,9 @@ tokenize text@(c : rest) =
     '"' ->
       let restOfText = dropWhile (/= '"') rest
           stringValue = takeWhile (/= '"') rest
-       in if restOfText == "" -- unterminated string
+       in if restOfText /= ""
             then TString stringValue : tokenize (tail restOfText)
-            else [TError "Unterminated string"]
+            else [TError "Unterminated string"] -- unterminated string
     '[' -> TLBrac : tokenize rest
     ']' -> TRBrac : tokenize rest
     _ ->
