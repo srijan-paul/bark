@@ -21,7 +21,7 @@ initProject rootDir = do
   let dirNames = ["src/assets", "src/content", "src/public", "assets"]
    in mapM_ (createDirectoryIfMissing True . combine rootDir) dirNames
 
-withFilesInDir :: (Text -> String -> IO ()) -> FilePath -> IO ()
+withFilesInDir :: (Text -> FilePath -> IO ()) -> FilePath -> IO ()
 withFilesInDir _ "" = return ()
 withFilesInDir callback path = do
   isFile <- doesFileExist path
@@ -36,7 +36,7 @@ withFilesInDir callback path = do
         (withFilesInDir callback . combine path)
         contents
 
-readMetaData :: [Char] -> IO Value
+readMetaData :: FilePath -> IO Value
 readMetaData path = do
   let metaDataPath = replaceExtension path ".meta"
   metaExists <- doesFileExist metaDataPath
@@ -46,7 +46,7 @@ readMetaData path = do
       else return ""
   return $ parse content
 
-readTemplate :: String -> String -> Value -> IO Template
+readTemplate :: FilePath -> FilePath -> Value -> IO Template
 readTemplate baseDir path (Object map) = do
   let templateName = case map ! pack "template" of
         String name -> name
@@ -64,16 +64,16 @@ readTemplate baseDir path (Object map) = do
 readTemplate _ _ _ = error "Post metadata must be an object"
 
 convertFile :: String -> Text -> [Char] -> IO ()
-convertFile rootDir body path = do
-  metaData <- readMetaData path
+convertFile rootDir body mdPath = do
+  metaData <- readMetaData mdPath 
 
-  let targetPath = rootDir </> replaceExtension (replaceDirectory path "build") ".html"
+  let targetPath = rootDir </> replaceExtension (replaceDirectory mdPath "build") ".html"
       fileBaseName = takeBaseName targetPath
       htmlContent = commonmarkToHtml [] body
       postData = HMap.fromList [("content", String htmlContent), ("meta", metaData)]
 
   createDirectoryIfMissing True $ dropFileName targetPath
-  template <- readTemplate rootDir path metaData
+  template <- readTemplate rootDir mdPath metaData
 
   let output = substitute template postData
    in Data.Text.IO.writeFile targetPath output
