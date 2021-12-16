@@ -8,10 +8,11 @@ import Bark.FrontMatter (parse)
 import CMark (commonmarkToHtml, commonmarkToNode)
 import Control.Monad (when)
 import Data.HashMap.Strict as HMap (HashMap, empty, fromList, insert, (!))
+import Data.List (stripPrefix)
 import Data.Text (Text, isPrefixOf, pack, stripPrefix, stripStart, unpack)
 import qualified Data.Text.IO (readFile, writeFile)
-import System.Directory (createDirectoryIfMissing, doesFileExist, doesPathExist, listDirectory)
-import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceDirectory, replaceExtension, takeBaseName, (</>))
+import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, doesPathExist, listDirectory)
+import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceDirectory, replaceExtension, takeBaseName, takeDirectory, (</>))
 import Text.Mustache as Mustache (Template (..), ToMustache (toMustache), compileTemplate, substitute)
 import Text.Mustache.Types (Value (..))
 
@@ -21,14 +22,12 @@ initProject rootDir = do
   let dirNames = ["src/assets", "src/content", "src/public", "assets"]
    in mapM_ (createDirectoryIfMissing True . combine rootDir) dirNames
 
-withFilesInDir :: (Text -> FilePath -> IO ()) -> FilePath -> IO ()
+withFilesInDir :: (FilePath -> IO ()) -> FilePath -> IO ()
 withFilesInDir _ "" = return ()
 withFilesInDir callback path = do
   isFile <- doesFileExist path
   if isFile
-    then when (isExtensionOf ".md" path) $ do
-      markdown <- Data.Text.IO.readFile path
-      callback markdown path
+    then callback path
     else do
       -- `path` is itself a directory, and needs to be recursed over
       contents <- listDirectory path
@@ -63,9 +62,10 @@ readTemplate baseDir path (Object map) = do
         Right template -> return template
 readTemplate _ _ _ = error "Post metadata must be an object"
 
-convertFile :: String -> Text -> [Char] -> IO ()
-convertFile rootDir body mdPath = do
-  metaData <- readMetaData mdPath 
+convertFile :: FilePath -> FilePath -> IO ()
+convertFile rootDir mdPath = do
+  metaData <- readMetaData mdPath
+  body <- Data.Text.IO.readFile mdPath
 
   let targetPath = rootDir </> replaceExtension (replaceDirectory mdPath "build") ".html"
       fileBaseName = takeBaseName targetPath
@@ -76,9 +76,38 @@ convertFile rootDir body mdPath = do
   template <- readTemplate rootDir mdPath metaData
 
   let output = substitute template postData
-   in Data.Text.IO.writeFile targetPath output
+  Data.Text.IO.writeFile targetPath output
 
 buildProject :: FilePath -> IO ()
 buildProject rootDir = do
-  let sourceDir = rootDir </> "src/content"
-  withFilesInDir (convertFile rootDir) sourceDir
+  let sourceDir = rootDir </> "src"
+      contentDir = sourceDir </> "content"
+
+  -- 1. Convert all .md files to corresponding .html files
+  let convert filePath = when (isExtensionOf ".md" filePath) $ do
+        convertFile rootDir filePath
+  withFilesInDir convert contentDir
+
+  -- 2. Copy over the assets and css
+  let buildDir = rootDir </> "build"
+      copyToBuildDir srcPath = do
+        fileExists <- doesFileExist srcPath
+        when fileExists $ do
+          case Data.List.stripPrefix sourceDir srcPath of
+            Nothing -> error "some error ocurred :("
+            Just path ->
+              let dstPath = buildDir ++ path
+                  dstDir = takeDirectory dstPath
+               in do
+                    createDirectoryIfMissing True dstDir
+                    copyFile srcPath dstPath
+
+      copyAllToBuildDir dirName = do
+        let path = sourceDir </> dirName
+        isDir <- doesDirectoryExist path
+        isFile <- doesFileExist path
+        when (isDir || isFile) $ do
+          withFilesInDir copyToBuildDir path
+
+  copyAllToBuildDir "css"
+  copyAllToBuildDir "assets"
