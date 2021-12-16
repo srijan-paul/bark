@@ -82,10 +82,14 @@ parse' tokstream@(token : rest) =
        in (Object hmap, remainingTokens)
     TError errMessage -> error errMessage
     unknownToken -> error $ "Unexpected token " ++ show unknownToken
-parse' [] = undefined
+parse' [] = (Null, [])
 
 parseFromTokens :: [Token] -> Value
 parseFromTokens = fst . parse'
 
 parse :: String -> Value
 parse = parseFromTokens . tokenize
+
+stripFrontMatter :: String -> (String, String)
+stripFrontMatter "" = ("", "")
+stripFrontMatter body = undefined

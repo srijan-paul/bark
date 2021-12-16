@@ -4,14 +4,16 @@ module Bark.Core
   )
 where
 
+import Bark.FrontMatter (parse)
 import CMark (commonmarkToHtml, commonmarkToNode)
 import Control.Monad (when)
 import Data.HashMap.Strict as HMap (HashMap, empty, fromList, insert, (!))
 import Data.Text (Text, isPrefixOf, pack, stripPrefix, stripStart, unpack)
 import qualified Data.Text.IO (readFile, writeFile)
-import System.Directory (createDirectoryIfMissing, doesFileExist, listDirectory)
-import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceDirectory, replaceExtension, (</>))
+import System.Directory (createDirectoryIfMissing, doesFileExist, doesPathExist, listDirectory)
+import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceDirectory, replaceExtension, takeBaseName, (</>))
 import Text.Mustache as Mustache (Template (..), ToMustache (toMustache), compileTemplate, substitute)
+import Text.Mustache.Types (Value (..))
 
 initProject :: FilePath -> IO ()
 initProject rootDir = do
@@ -34,19 +36,49 @@ withFilesInDir callback path = do
         (withFilesInDir callback . combine path)
         contents
 
+readMetaData :: [Char] -> IO Value
+readMetaData path = do
+  let metaDataPath = replaceExtension path ".meta"
+  metaExists <- doesFileExist metaDataPath
+  content <-
+    if metaExists
+      then readFile metaDataPath
+      else return ""
+  return $ parse content
+
+readTemplate :: String -> String -> Value -> IO Template
+readTemplate baseDir path (Object map) = do
+  let templateName = case map ! pack "template" of
+        String name -> name
+        _ -> error "template name must be a string"
+      templatePath = baseDir </> "template" </> unpack templateName ++ ".html"
+
+  templateExists <- doesFileExist templatePath
+  if not templateExists
+    then error $ "template not found: " ++ templatePath
+    else do
+      templateContent <- Data.Text.IO.readFile templatePath
+      case compileTemplate templatePath templateContent of
+        Left err -> error $ show err
+        Right template -> return template
+readTemplate _ _ _ = error "Post metadata must be an object"
+
+convertFile :: String -> Text -> [Char] -> IO ()
+convertFile rootDir body path = do
+  metaData <- readMetaData path
+
+  let targetPath = rootDir </> replaceExtension (replaceDirectory path "build") ".html"
+      fileBaseName = takeBaseName targetPath
+      htmlContent = commonmarkToHtml [] body
+      postData = HMap.fromList [("content", String htmlContent), ("meta", metaData)]
+
+  createDirectoryIfMissing True $ dropFileName targetPath
+  template <- readTemplate rootDir path metaData
+
+  let output = substitute template postData
+   in Data.Text.IO.writeFile targetPath output
+
 buildProject :: FilePath -> IO ()
 buildProject rootDir = do
-  let sourceDir = combine rootDir "src/content"
-  withFilesInDir convert sourceDir
-  where
-    convert content path = do
-      let targetPath = rootDir </> replaceExtension (replaceDirectory path "build") ".html"
-      createDirectoryIfMissing True $ dropFileName targetPath
-      let htmlContent = commonmarkToHtml [] content
-          postData = HMap.fromList [("content", htmlContent)]
-          template = compileTemplate "" $ pack "testinnng {{ content }}"
-      case template of
-        Left _ -> error "Invalid template"
-        Right template ->
-          let output = substitute template htmlContent
-           in Data.Text.IO.writeFile targetPath output
+  let sourceDir = rootDir </> "src/content"
+  withFilesInDir (convertFile rootDir) sourceDir

@@ -1,3 +1,4 @@
 [ ] Support escape characters in strings
-[ ] Write a parser for the data
+[x] Write a parser for the data
+[x] Render with mustache
 [ ] Add caching
