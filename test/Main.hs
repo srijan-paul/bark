@@ -1,11 +1,10 @@
-import Bark.FrontMatter (Token (..), tokenize, parse')
-import Test.HUnit (Assertion, Test (..), runTestTT, runTestTTAndExit, runTestText, (~=?))
+import Bark.FrontMatter (Token (..), tokenize, parse, parseFromTokens)
+import Test.HUnit (Assertion, Test (..), runTestTT, runTestTTAndExit, runTestText, (~=?), assertEqual)
 import Text.Mustache.Types ( Value(..) )
 import Data.Text (pack)
 
-tokenizerTests :: Test
+tokenizerTests :: [Test]
 tokenizerTests =
-  TestList
     [ [TKey "foo", TKey "bar"] ~=? tokenize "foo bar",
       [TKey "foobar"] ~=? tokenize "foobar",
       [TLSqBrac, TRSqBrac] ~=? tokenize "[]",
@@ -17,5 +16,16 @@ tokenizerTests =
       [TLBrac, TString "aa", TString "bb", TRBrac ] ~=? tokenize "{\"aa\" \"bb\"}"
     ]
 
+-- Mustache Value data class does not derive `Eq`, so the next best way to test them
+-- that I could come up with was to stringize them with `show` and compare with expected values.
+-- Haxskel :)
+parserTests :: [Test]
+parserTests =
+  [
+    show (parseFromTokens [TString "hello world"]) ~=? "\"hello world\"",
+    show (parseFromTokens [TLSqBrac, TString "a", TString "b", TRSqBrac ]) ~=? "[\"a\",\"b\"]",
+    show (parseFromTokens [TLSqBrac, TRSqBrac]) ~=? "[]"
+  ]
+
 main :: IO ()
-main = runTestTTAndExit tokenizerTests
+main = runTestTTAndExit $ TestList $ tokenizerTests ++ parserTests

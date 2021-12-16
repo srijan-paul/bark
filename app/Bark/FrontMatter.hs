@@ -1,7 +1,7 @@
-module Bark.FrontMatter (tokenize, Token (..), parse') where
+module Bark.FrontMatter (tokenize, Token (..), parse, parseFromTokens) where
 
 import Data.Char (isAlphaNum, isSpace)
-import Data.HashMap.Strict (HashMap, empty)
+import Data.HashMap.Strict (HashMap, empty, insert)
 import Data.List (takeWhile)
 import qualified Data.List as List
 import Data.Text as T (Text, pack)
@@ -43,11 +43,33 @@ tokenize text@(c : rest)
 parseList :: [Value] -> [Token] -> ([Value], [Token])
 parseList acc tokens =
   case tokens of
-    (TRSqBrac : toks) -> (reverse acc, toks)
-    (tok : toks) ->
+    TRSqBrac : toks -> (reverse acc, toks)
+    tok : toks ->
       let (value, restTokens) = parse' tokens
        in parseList (value : acc) restTokens
     [] -> error "Expected ']' to close list, but found end of input"
+
+type MetaMapEntry = (Text, Value)
+
+type MetaMap = HashMap Text Value
+
+parseMapEntry :: [Token] -> (MetaMapEntry, [Token])
+parseMapEntry [TKey key] = error "Expected ':' after map key."
+parseMapEntry (TKey key : [TColon]) = error "Unexpected end of input while parsing map entry."
+parseMapEntry (TKey key : TColon : toks) =
+  let (value, restOfTokens) = parse' toks
+   in ((pack key, value), restOfTokens)
+parseMapEntry _ = error "Bad call to `parseMapEntry`. Please file a bug report"
+
+parseMap :: MetaMap -> [Token] -> (MetaMap, [Token])
+parseMap acc [] = (acc, [])
+parseMap acc tokstream@(token : toks) =
+  case token of
+    TKey key ->
+      let ((k, v), restOfToks) = parseMapEntry tokstream
+       in parseMap (insert k v acc) restOfToks
+    TRBrac -> (acc, toks)
+    _ -> undefined
 
 parse' :: [Token] -> (Value, [Token])
 parse' tokstream@(token : rest) =
@@ -56,6 +78,15 @@ parse' tokstream@(token : rest) =
     TLSqBrac ->
       let (values, remainingTokens) = parseList [] rest
        in (Array $ Vec.fromList values, remainingTokens)
+    TLBrac ->
+      let (hmap, remainingTokens) = parseMap empty rest
+       in (Object hmap, remainingTokens)
     TError errMessage -> error errMessage
     unknownToken -> error $ "Unexpected token " ++ show unknownToken
 parse' [] = undefined
+
+parseFromTokens :: [Token] -> Value
+parseFromTokens = fst . parse'
+
+parse :: String -> Value
+parse = parseFromTokens . tokenize
