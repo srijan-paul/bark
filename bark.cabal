@@ -29,7 +29,9 @@ library
         text,
         directory,
         filepath,
-        containers
+        containers,
+        mustache,
+        unordered-containers
 
     exposed-modules:
         Bark.Core,
@@ -52,7 +54,9 @@ executable bark
         text,
         directory,
         filepath,
-        containers
+        containers,
+        mustache,
+        unordered-containers
 
     hs-source-dirs:   app
     default-language: Haskell2010
