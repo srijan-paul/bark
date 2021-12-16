@@ -40,22 +40,22 @@ tokenize text@(c : rest)
      in TKey ident : tokenize restOfText
   | otherwise = [TError $ "Unexpected character: " ++ [c]]
 
-parseList :: [Value] -> [Token] -> (Value, [Token])
-parseList _ [] = undefined
-parseList acc (tok : toks) =
-  let (value, restTokens) = parse' toks
-   in if null restTokens then 
-        error ""
-      else if head restTokens == TRSqBrac then
-        let list = Array $ Vec.fromList $ reverse (value : acc)
-          in (list, tail restTokens)
-      else 
-        parseList (value : acc) restTokens
+parseList :: [Value] -> [Token] -> ([Value], [Token])
+parseList acc tokens =
+  case tokens of
+    (TRSqBrac : toks) -> (reverse acc, toks)
+    (tok : toks) ->
+      let (value, restTokens) = parse' tokens
+       in parseList (value : acc) restTokens
+    [] -> error "Expected ']' to close list, but found end of input"
 
 parse' :: [Token] -> (Value, [Token])
 parse' tokstream@(token : rest) =
   case token of
     TString str -> (String $ T.pack str, rest)
-    TLBrac -> parseList [] rest
-    _ -> error "Unexpected token"
+    TLSqBrac ->
+      let (values, remainingTokens) = parseList [] rest
+       in (Array $ Vec.fromList values, remainingTokens)
+    TError errMessage -> error errMessage
+    unknownToken -> error $ "Unexpected token " ++ show unknownToken
 parse' [] = undefined

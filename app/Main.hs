@@ -6,6 +6,7 @@ import Data.Text (intercalate, pack)
 import System.Directory (createDirectoryIfMissing)
 import Text.Mustache (Template (..), ToMustache (toMustache), substitute)
 import Text.Mustache.Compile (compileTemplate)
+import Bark.FrontMatter (tokenize, parse')
 
 main :: IO ()
 main = do
@@ -15,6 +16,8 @@ main = do
   case res of
     Right template -> print $ substitute template (toMustache hashmap)
     _ -> print ":("
+
+  print $ parse' $ tokenize "[\"aa\" \"bb\" [\"11\" \"22\"] \"cc\"]"
 
   createDirectoryIfMissing True "scratch"
   buildProject "scratch"
