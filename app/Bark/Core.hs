@@ -6,10 +6,12 @@ where
 
 import CMark (commonmarkToHtml, commonmarkToNode)
 import Control.Monad (when)
-import Data.Text (Text, pack, unpack, isPrefixOf, stripPrefix, stripStart)
+import Data.HashMap.Strict as HMap (HashMap, empty, fromList, insert, (!))
+import Data.Text (Text, isPrefixOf, pack, stripPrefix, stripStart, unpack)
 import qualified Data.Text.IO (readFile, writeFile)
 import System.Directory (createDirectoryIfMissing, doesFileExist, listDirectory)
-import System.FilePath.Posix (combine, dropFileName, replaceDirectory, replaceExtension, (</>), isExtensionOf)
+import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceDirectory, replaceExtension, (</>))
+import Text.Mustache as Mustache (Template (..), ToMustache (toMustache), compileTemplate, substitute)
 
 initProject :: FilePath -> IO ()
 initProject rootDir = do
@@ -40,4 +42,11 @@ buildProject rootDir = do
     convert content path = do
       let targetPath = rootDir </> replaceExtension (replaceDirectory path "build") ".html"
       createDirectoryIfMissing True $ dropFileName targetPath
-      Data.Text.IO.writeFile targetPath $ commonmarkToHtml [] content
+      let htmlContent = commonmarkToHtml [] content
+          postData = HMap.fromList [("content", htmlContent)]
+          template = compileTemplate "" $ pack "testinnng {{ content }}"
+      case template of
+        Left _ -> error "Invalid template"
+        Right template ->
+          let output = substitute template htmlContent
+           in Data.Text.IO.writeFile targetPath output

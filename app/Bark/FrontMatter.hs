@@ -50,16 +50,15 @@ parseList acc tokens =
     [] -> error "Expected ']' to close list, but found end of input"
 
 type MetaMapEntry = (Text, Value)
-
 type MetaMap = HashMap Text Value
 
 parseMapEntry :: [Token] -> (MetaMapEntry, [Token])
 parseMapEntry [TKey key] = error "Expected ':' after map key."
-parseMapEntry (TKey key : [TColon]) = error "Unexpected end of input while parsing map entry."
+parseMapEntry (TKey key : [TColon]) = error "Unexpected end of input while reading map entry."
 parseMapEntry (TKey key : TColon : toks) =
   let (value, restOfTokens) = parse' toks
    in ((pack key, value), restOfTokens)
-parseMapEntry _ = error "Bad call to `parseMapEntry`. Please file a bug report"
+parseMapEntry _ = error "Bad call to `parseMapEntry`. Please file a bug report T^T"
 
 parseMap :: MetaMap -> [Token] -> (MetaMap, [Token])
 parseMap acc [] = (acc, [])
@@ -69,7 +68,7 @@ parseMap acc tokstream@(token : toks) =
       let ((k, v), restOfToks) = parseMapEntry tokstream
        in parseMap (insert k v acc) restOfToks
     TRBrac -> (acc, toks)
-    _ -> undefined
+    other -> error $ "Unexpected token while reading map: " ++ show other
 
 parse' :: [Token] -> (Value, [Token])
 parse' tokstream@(token : rest) =
