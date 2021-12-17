@@ -1,15 +1,59 @@
-@import url("https://fonts.googleapis.com/css2?family=Merriweather&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono&family=Merriweather:wght@300;400&display=swap');
 
 body {
   font-family: "Merriweather", serif;
+  background-color: #f0f1f5;
+  font-size: 17px;
+  font-weight: 300;
 }
 
-pre, code {
-  font-family: 'JetBrains Mono', monospace;
+pre,
+code {
+  font-family: "JetBrains Mono", monospace;
+}
+
+code {
+  background-color: "black";
 }
 
 .main {
-  padding-top: 5rem;
+  padding: 5rem 0rem;
   width: 60%;
   margin: auto;
+}
+
+img {
+  max-width: 500px;
+}
+
+a:visited,
+a:focus,
+a,
+a:hover {
+  color: #2980b9;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+  color: #273c75;
+}
+
+@media only screen and (max-width: 650px) {
+  body,
+  p,
+  div {
+    font-size: 16px;
+  }
+
+  .main {
+    padding-top: 1rem;
+    width: 95%;
+  }
+
+  img {
+    max-width: 350px;
+  }
 }

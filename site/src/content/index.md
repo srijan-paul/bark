@@ -120,7 +120,7 @@ Here is an example template:
 
 ### Building your project
 
-This is were everything comes together nicely.
+This is where everything comes together nicely.
 
 ```sh
 $ bark build
@@ -129,19 +129,22 @@ $ bark build
 Once you do this, you should see a `build` directory pop up in the project root.
 This directory now contains the HTML output of all our files.
 
+Running the build command again and again is tedious.
+You could make bark watch over the directory for changes using `bark watch`.
+
 ## Sample project.
 
-Want a sample project as reference, how about this one?
+Want a sample project as reference? How about this one?
 
 The page you're reading right now has been made with bark.
-You can find the source [here]().
+You can find the source [here](https://github.com/srijan-paul/bark/tree/main/site).
 
 ## FAQ
 
 **Q. How can I get syntax highlighting?**
   
 Same way I did on this page.
-You could use a syntax highlighting library like [highlight.js](https://highlightjs.org/) and initialize it in a `<script>` tag in your template to embed it.
+You could use a syntax highlighting library like [highlight.js](https://highlightjs.org/) and initialize it in a `<script>` tag in your template to embed it. It only takes 5 lines of code!
 
 **Q. How can do I get nested/grouped paths to my pages?**
 
@@ -152,7 +155,15 @@ The build directory structure mirrors the source.
 
 ![cat-image](assets/cookedcat.jpg)
 
-**Q. My question isn't listed here !? WTF !?**
+**Q. My question isn't listed here !**
 
 That's okay, you can always file an [issue](https://github.com/srijan-paul/bark/issues) to submit bugs/suggestions,
 or get in touch with me on my [twitter](https://twitter.com/_injuly) or discord - **injuly#6820**.
+
+## That's it!
+
+You've done it.
+
+You've mastered SSGs.
+
+Now go make some beautiful webpages, unlike this one.
