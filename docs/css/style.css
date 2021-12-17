@@ -1,0 +1,19 @@
+@import url("https://fonts.googleapis.com/css2?family=Merriweather&display=swap");
+
+body {
+  font-family: "Merriweather", serif;
+}
+
+pre, code {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.main {
+  padding-top: 5rem;
+  width: 60%;
+  margin: auto;
+}
+
+img {
+  max-width: 500px;
+}

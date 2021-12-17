@@ -148,8 +148,11 @@ You could use a syntax highlighting library like [highlight.js](https://highligh
 Simple! Just nest your directory structure inside `content` the way you want your URLs to turn out.
 The build directory structure mirrors the source.
 
+**Q. Does bark support images and other media content?**
+
+![cat-image](assets/cookedcat.jpg)
+
 **Q. My question isn't listed here !? WTF !?**
 
 That's okay, you can always file an [issue](https://github.com/srijan-paul/bark/issues) to submit bugs/suggestions,
 or get in touch with me on my [twitter](https://twitter.com/_injuly) or discord - **injuly#6820**.
-

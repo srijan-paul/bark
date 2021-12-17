@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/styles/default.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>
+  <title></title>
+</head>
+
+<body>
+  <div class="main">
+    Date: 17th Dec 2021
+    <h1 id="bark">Bark</h1>
+<p>Bark is a static site generator written in Haskell, targeting ease of use.</p>
+<p>If you have any experience with Hugo, 11ty or Jekyll then using Bark should be a cakewalk.</p>
+<h2 id="installation">Installation</h2>
+<p>Since bark is in it's experimental stages, the only way to get it currently is to
+compile it from source. The source tree can be found <a href="https://github.com/srijan-paul/bark">here</a> on GitHub. Just clone the repo and run the <code>build.sh</code> script to compile.
+When finished, you should see an executable in <code>dist/bark</code>.</p>
+<p>Once it's more stable, bark will be released on hackage.</p>
+<h2 id="usage">Usage</h2>
+<p>Using bark is as simple as it gets.</p>
+<h3 id="one-time-setup">One time setup</h3>
+<p>Before we continue, make sure you have added <code>bark</code> to your <code>PATH</code> environment variable.
+If you're on Linux and are using bash, then just copy paste the following line into your terminal:</p>
+<pre><code class="language-sh">$ export PATH=&quot;path/to/bark&quot;:$PATH &gt;&gt; ~/.zshrc
+</code></pre>
+<p>Replace <code>/path/to/bark</code> with the actual path to the <code>bark</code> executable.
+Let's do a quick sanity check to ensure all's good.
+If you get something similar to what's shown below when you enter <code>bark</code> into the command line, then we're all set!</p>
+<pre><code class="language-sh">$ bark
+Bark v0.1.0. commands available:
+build: build the current project
+watch: watch the directory and build whenever changes are detected.
+</code></pre>
+<h3 id="creating-projects">Creating projects</h3>
+<p>To create a new project, create an empty directory and initialize it with <code>bark init</code>.</p>
+<pre><code class="language-sh">$ mkdir project
+$ cd project
+$ bark init
+</code></pre>
+<p>Now your directory should have this structure:</p>
+<pre><code class="language-sh">.
+├── src
+│   ├── assets
+│   ├── content
+│   └── public
+└── template
+</code></pre>
+<h3 id="adding-new-posts">Adding new posts</h3>
+<p>To add a new post, you'll have to create two new files in the <code>content</code> directory.</p>
+<pre><code class="language-sh">$ touch src/content/post.md src/content/post.meta
+</code></pre>
+<p>The <code>post.md</code> file contains the markdown content of our page.
+The <code>post.meta</code> file contains metadata about our post.
+The metadata is stored in a JSON-like format.</p>
+<p>Here's an example of what you could write into <code>post.md</code>:</p>
+<pre><code class="language-md"># Hello, world!
+
+This is my first post
+</code></pre>
+<p>And the corresponding metadata in a <code>post.meta</code> file:</p>
+<pre><code class="language-js">{
+    date: &quot;17th December 2021&quot;,
+    tags: [&quot;post&quot;, &quot;blog&quot;],
+    template: &quot;post&quot;,
+    title: &quot;My first post!&quot;
+}
+</code></pre>
+<p>The <code>template</code> key <strong>must</strong> be present in a metadata file.
+It represents which HTML template to use when rendering the post.</p>
+<h3 id="using-templates">Using templates</h3>
+<p>A bark template is written in the <a href="https://mustache.github.io/">mustache</a> templating language.
+If you've used HTML, then you already know most of what you need to know.
+In the mustache template, there are two prexisting variables:</p>
+<ol>
+<li><code>content</code>: The markdown content of the page, now converted to HTML.
+</li>
+<li><code>meta</code>: The metadata object present in the <code>post.meta</code> file.
+</li>
+</ol>
+<p>Here is an example template:</p>
+<pre><code class="language-html">&lt;html&gt;
+  &lt;head&gt;
+    &lt;title&gt;{{ meta.title }}&lt;/title&gt;
+  &lt;/head&gt;
+  &lt;body&gt;
+    &lt;div class=&quot;main&quot;&gt;
+      Date: {{meta.date}}
+      &lt;!-- The '&amp;' is neccessary when plugging in HTML,
+           otherwise the output would be sanitized --&gt;
+      {{&amp;content}}
+    &lt;/div&gt;
+  &lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<h3 id="building-your-project">Building your project</h3>
+<p>This is were everything comes together nicely.</p>
+<pre><code class="language-sh">$ bark build
+</code></pre>
+<p>Once you do this, you should see a <code>build</code> directory pop up in the project root.
+This directory now contains the HTML output of all our files.</p>
+<h2 id="sample-project">Sample project.</h2>
+<p>Want a sample project as reference, how about this one?</p>
+<p>The page you're reading right now has been made with bark.
+You can find the source <a href="">here</a>.</p>
+<h2 id="faq">FAQ</h2>
+<p><strong>Q. How can I get syntax highlighting?</strong></p>
+<p>Same way I did on this page.
+You could use a syntax highlighting library like <a href="https://highlightjs.org/">highlight.js</a> and initialize it in a <code>&lt;script&gt;</code> tag in your template to embed it.</p>
+<p><strong>Q. How can do I get nested/grouped paths to my pages?</strong></p>
+<p>Simple! Just nest your directory structure inside <code>content</code> the way you want your URLs to turn out.
+The build directory structure mirrors the source.</p>
+<p><strong>Q. My question isn't listed here !? WTF !?</strong></p>
+<p>That's okay, you can always file an <a href="https://github.com/srijan-paul/bark/issues">issue</a> to submit bugs/suggestions,
+or get in touch with me on my <a href="https://twitter.com/_injuly">twitter</a> or discord - <strong>injuly#6820</strong>.</p>
+<p><strong>Q. Does bark support images and all that?</strong></p>
+<p><img src="assets/cookedcat.jpg" alt="cat-image" /></p>
+
+  </div>
+  <script>hljs.highlightAll();</script>
+</body>
+
+</html>
