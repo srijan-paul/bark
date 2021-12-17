@@ -1,19 +1,18 @@
 module Main where
 
-import Bark.Core (buildProject)
+import Bark.Core (buildProject, initProject)
 import Control.Concurrent (threadDelay)
 import Control.Monad (forever, when)
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, getCurrentDirectory)
+import System.Environment (getArgs)
+import System.Exit (exitFailure, exitSuccess)
 import System.FSNotify (watchDir, withManager)
 import System.FilePath ((</>))
-import System.Environment (getArgs)
-import System.Exit (exitSuccess)
-
 
 buildAndLog :: FilePath -> IO ()
 buildAndLog projectDir = do
   buildProject projectDir
-  print "Built project"
+  putStrLn "Built project"
 
 watchProject :: FilePath -> IO ()
 watchProject dir =
@@ -22,14 +21,25 @@ watchProject dir =
         watchDir mgr contentPath (const True) (\_ -> buildAndLog dir)
         forever $ threadDelay 1000000
 
-
 showInfo :: IO ()
-showInfo = print "Bark v0.1.0. commands available:\n\
-  \build: build the current project\n\
-  \watch: watch the directory and build whenever changes are detected."
+showInfo =
+  putStrLn 
+    "Bark v0.1.0. commands available:\n\
+    \build: build the current project\n\
+    \watch: watch the directory and build whenever changes are detected."
 
-execCommand :: String -> IO ()
-execCommand = undefined
+execCommand :: FilePath -> String -> IO ()
+execCommand cwd cmd =
+  case cmd of
+    "build" -> do
+      buildProject cwd
+      exitSuccess
+    "init" -> do
+      initProject cwd
+      exitSuccess
+    "watch" -> watchProject cwd
+    _ -> do
+      putStrLn $ "unknown command: " ++ cmd
 
 main :: IO ()
 main = do
@@ -37,5 +47,5 @@ main = do
   when (null args) $ do
     showInfo
     exitSuccess
-
-  watchProject "scratch"
+  cwd <- getCurrentDirectory
+  execCommand cwd $ head args

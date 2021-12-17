@@ -7,7 +7,8 @@ where
 import Bark.FrontMatter (parse)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
-import Control.Monad (when, forever)
+import Control.Concurrent (threadDelay)
+import Control.Monad (forever, when)
 import Data.Functor.Identity (Identity (Identity, runIdentity))
 import Data.HashMap.Strict as HMap (HashMap, fromList, (!))
 import Data.List (stripPrefix)
@@ -15,11 +16,10 @@ import Data.Text (Text, isPrefixOf, pack, unpack)
 import qualified Data.Text.IO (readFile, writeFile)
 import Data.Text.Lazy (toStrict)
 import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, listDirectory)
+import System.FSNotify (watchDir, withManager)
 import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceDirectory, replaceExtension, takeBaseName, takeDirectory, (</>))
-import System.FSNotify ( watchDir, withManager )
 import Text.Mustache as Mustache (Template (..), ToMustache (toMustache), compileTemplate, substitute)
 import Text.Mustache.Types (Value (..))
-import Control.Concurrent (threadDelay)
 
 initProject :: FilePath -> IO ()
 initProject rootDir = do
@@ -75,12 +75,14 @@ convertFile rootDir mdPath = do
   let targetPath = rootDir </> replaceExtension (replaceDirectory mdPath "build") ".html"
       fileBaseName = takeBaseName targetPath
 
-  let res = commonmarkWith (defaultSyntaxSpec <> gfmExtensions)  mdPath body :: (Identity (Either ParseError (Html ())))
+  let res = commonmarkWith (defaultSyntaxSpec <> gfmExtensions) mdPath body :: (Identity (Either ParseError (Html ())))
       htmlContent = case runIdentity res of
         (Left err) -> error $ show err
-        (Right html) ->  renderHtml html
+        (Right html) -> renderHtml html
 
-  let postData = HMap.fromList [("content", String $ toStrict htmlContent), ("meta", metaData)]
+  let postData =
+        HMap.fromList
+          [("content", String $ toStrict htmlContent), ("meta", metaData)]
 
   createDirectoryIfMissing True $ dropFileName targetPath
   template <- readTemplate rootDir mdPath metaData
@@ -121,4 +123,3 @@ buildProject rootDir = do
 
   copyAllToBuildDir "css"
   copyAllToBuildDir "assets"
-
