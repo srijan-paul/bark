@@ -25,7 +25,8 @@ library
     hs-source-dirs: app
     build-depends:
         base ^>=4.14.3.0,
-        cmark,
+        commonmark,
+        commonmark-extensions,
         text,
         directory,
         filepath,
@@ -51,8 +52,9 @@ executable bark
     -- other-extensions:
     build-depends:
         base ^>=4.14.3.0,
-        cmark,
         text,
+        commonmark,
+        commonmark-extensions,
         directory,
         filepath,
         containers,

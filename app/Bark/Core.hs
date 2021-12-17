@@ -5,13 +5,16 @@ module Bark.Core
 where
 
 import Bark.FrontMatter (parse)
-import CMark (commonmarkToHtml, commonmarkToNode)
+import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
+import Commonmark.Extensions (gfmExtensions)
 import Control.Monad (when)
-import Data.HashMap.Strict as HMap (HashMap, empty, fromList, insert, (!))
+import Data.Functor.Identity (Identity (Identity, runIdentity))
+import Data.HashMap.Strict as HMap (HashMap, fromList, (!))
 import Data.List (stripPrefix)
-import Data.Text (Text, isPrefixOf, pack, stripPrefix, stripStart, unpack)
+import Data.Text (Text, isPrefixOf, pack, unpack)
 import qualified Data.Text.IO (readFile, writeFile)
-import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, doesPathExist, listDirectory)
+import Data.Text.Lazy (toStrict)
+import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, listDirectory)
 import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceDirectory, replaceExtension, takeBaseName, takeDirectory, (</>))
 import Text.Mustache as Mustache (Template (..), ToMustache (toMustache), compileTemplate, substitute)
 import Text.Mustache.Types (Value (..))
@@ -69,8 +72,13 @@ convertFile rootDir mdPath = do
 
   let targetPath = rootDir </> replaceExtension (replaceDirectory mdPath "build") ".html"
       fileBaseName = takeBaseName targetPath
-      htmlContent = commonmarkToHtml [] body
-      postData = HMap.fromList [("content", String htmlContent), ("meta", metaData)]
+
+  let res = commonmarkWith (defaultSyntaxSpec <> gfmExtensions)  mdPath body :: (Identity (Either ParseError (Html ())))
+      htmlContent = case runIdentity res of
+        (Left err) -> error $ show err
+        (Right html) ->  renderHtml html
+
+  let postData = HMap.fromList [("content", String $ toStrict htmlContent), ("meta", metaData)]
 
   createDirectoryIfMissing True $ dropFileName targetPath
   template <- readTemplate rootDir mdPath metaData
@@ -90,17 +98,17 @@ buildProject rootDir = do
 
   -- 2. Copy over the assets and css
   let buildDir = rootDir </> "build"
-      copyToBuildDir srcPath = do
-        fileExists <- doesFileExist srcPath
+      copyToBuildDir filePath = do
+        fileExists <- doesFileExist filePath
         when fileExists $ do
-          case Data.List.stripPrefix sourceDir srcPath of
+          case Data.List.stripPrefix sourceDir filePath of
             Nothing -> error "some error ocurred :("
             Just path ->
               let dstPath = buildDir ++ path
                   dstDir = takeDirectory dstPath
                in do
                     createDirectoryIfMissing True dstDir
-                    copyFile srcPath dstPath
+                    copyFile filePath dstPath
 
       copyAllToBuildDir dirName = do
         let path = sourceDir </> dirName
