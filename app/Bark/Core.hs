@@ -7,7 +7,7 @@ where
 import Bark.FrontMatter (parse)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
-import Control.Monad (when)
+import Control.Monad (when, forever)
 import Data.Functor.Identity (Identity (Identity, runIdentity))
 import Data.HashMap.Strict as HMap (HashMap, fromList, (!))
 import Data.List (stripPrefix)
@@ -16,8 +16,10 @@ import qualified Data.Text.IO (readFile, writeFile)
 import Data.Text.Lazy (toStrict)
 import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, listDirectory)
 import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceDirectory, replaceExtension, takeBaseName, takeDirectory, (</>))
+import System.FSNotify ( watchDir, withManager )
 import Text.Mustache as Mustache (Template (..), ToMustache (toMustache), compileTemplate, substitute)
 import Text.Mustache.Types (Value (..))
+import Control.Concurrent (threadDelay)
 
 initProject :: FilePath -> IO ()
 initProject rootDir = do
@@ -119,3 +121,4 @@ buildProject rootDir = do
 
   copyAllToBuildDir "css"
   copyAllToBuildDir "assets"
+

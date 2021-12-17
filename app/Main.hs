@@ -1,14 +1,25 @@
 module Main where
 
 import Bark.Core (buildProject)
-import Data.HashMap.Strict as HashMap
-import Data.Text (intercalate, pack)
+import Control.Concurrent (threadDelay)
+import Control.Monad (forever)
 import System.Directory (createDirectoryIfMissing)
-import Text.Mustache (Template (..), ToMustache (toMustache), substitute)
-import Text.Mustache.Compile (compileTemplate)
-import Bark.FrontMatter (tokenize, parse)
+import System.FSNotify (watchDir, withManager)
+import System.FilePath ((</>))
+
+
+buildAndLog :: FilePath -> IO ()
+buildAndLog projectDir = do
+  buildProject projectDir
+  print "Built project"
+
+watchProject :: FilePath -> IO ()
+watchProject dir =
+  let contentPath = dir </> "src" </> "content"
+   in withManager $ \mgr -> do
+        watchDir mgr contentPath (const True) (\_ -> buildAndLog dir)
+        forever $ threadDelay 1000000
 
 main :: IO ()
 main = do
-  createDirectoryIfMissing True "scratch"
-  buildProject "scratch"
+  watchProject "scratch"

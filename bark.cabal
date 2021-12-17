@@ -33,7 +33,8 @@ library
         containers,
         mustache,
         unordered-containers,
-        vector
+        vector,
+        fsnotify
 
     exposed-modules:
         Bark.Core,
@@ -60,7 +61,10 @@ executable bark
         containers,
         mustache,
         unordered-containers,
-        vector
+        vector,
+        fsnotify
+
+    ghc-options: -threaded
 
     hs-source-dirs:   app
     default-language: Haskell2010
