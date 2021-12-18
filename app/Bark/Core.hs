@@ -24,7 +24,7 @@ import Text.Mustache.Types (Value (..))
 initProject :: FilePath -> IO ()
 initProject rootDir = do
   createDirectoryIfMissing True rootDir
-  let dirNames = ["src/assets", "src/content", "src/public", "assets"]
+  let dirNames = ["src/assets", "src/content", "src/css", "template"]
    in mapM_ (createDirectoryIfMissing True . combine rootDir) dirNames
 
 withFilesInDir :: (FilePath -> IO ()) -> FilePath -> IO ()
