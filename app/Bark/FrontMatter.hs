@@ -89,7 +89,3 @@ parseFromTokens = fst . parse'
 
 parse :: String -> Value
 parse = parseFromTokens . tokenize
-
-stripFrontMatter :: String -> (String, String)
-stripFrontMatter "" = ("", "")
-stripFrontMatter body = undefined
