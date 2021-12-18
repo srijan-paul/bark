@@ -16,7 +16,7 @@ buildAndLog projectDir = do
 
 watchProject :: FilePath -> IO ()
 watchProject dir =
-  let contentPath = dir </> "src" </> "content"
+  let contentPath = dir </> "src"
    in withManager $ \mgr -> do
         watchDir mgr contentPath (const True) (\_ -> buildAndLog dir)
         forever $ threadDelay 1000000
