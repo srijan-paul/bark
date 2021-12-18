@@ -12,8 +12,8 @@ import Control.Monad (forever, when)
 import Data.Functor.Identity (Identity (Identity, runIdentity))
 import Data.HashMap.Strict as HMap (HashMap, fromList, (!))
 import Data.List (stripPrefix)
-import Data.Text (Text, isPrefixOf, pack, unpack)
-import qualified Data.Text.IO (readFile, writeFile)
+import qualified Data.Text as T (Text, pack, unpack)
+import qualified Data.Text.IO as TIO (readFile, writeFile)
 import Data.Text.Lazy (toStrict)
 import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, listDirectory)
 import System.FSNotify (watchDir, withManager)
@@ -52,28 +52,34 @@ readMetaData path = do
 
 readTemplate :: FilePath -> FilePath -> Value -> IO Template
 readTemplate baseDir path (Object map) = do
-  let templateName = case map ! pack "template" of
+  let templateName = case map ! T.pack "template" of
         String name -> name
         _ -> error "template name must be a string"
-      templatePath = baseDir </> "template" </> unpack templateName ++ ".html"
+      templatePath = baseDir </> "template" </> T.unpack templateName ++ ".html"
 
   templateExists <- doesFileExist templatePath
   if not templateExists
     then error $ "template not found: " ++ templatePath
     else do
-      templateContent <- Data.Text.IO.readFile templatePath
+      templateContent <- TIO.readFile templatePath
       case compileTemplate templatePath templateContent of
         Left err -> error $ show err
         Right template -> return template
 readTemplate _ _ _ = error "Post metadata must be an object"
 
+mdPathToRelativeURL:: FilePath -> FilePath -> Maybe FilePath
+mdPathToRelativeURL rootDir mdPath =
+  stripPrefix (rootDir </> "src" </> "content" ++ "/") mdPath
+    >>= \path -> Just $ replaceExtension path ".html"
+
 convertFile :: FilePath -> FilePath -> IO ()
 convertFile rootDir mdPath = do
   metaData <- readMetaData mdPath
-  body <- Data.Text.IO.readFile mdPath
+  body <- TIO.readFile mdPath
 
-  let targetPath = rootDir </> replaceExtension (replaceDirectory mdPath "build") ".html"
-      fileBaseName = takeBaseName targetPath
+  let targetPath = case mdPathToRelativeURL rootDir mdPath of
+        Nothing -> error $ "Internal error : Bad file path: " ++ mdPath
+        Just path -> rootDir </> "build" </> path 
 
   let res = commonmarkWith (defaultSyntaxSpec <> gfmExtensions) mdPath body :: (Identity (Either ParseError (Html ())))
       htmlContent = case runIdentity res of
@@ -88,7 +94,7 @@ convertFile rootDir mdPath = do
   template <- readTemplate rootDir mdPath metaData
 
   let output = substitute template postData
-  Data.Text.IO.writeFile targetPath output
+  TIO.writeFile targetPath output
 
 buildProject :: FilePath -> IO ()
 buildProject rootDir = do
