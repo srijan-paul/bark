@@ -81,9 +81,9 @@ And the corresponding metadata in a `post.meta` file:
 
 ```js
 {
-    date: "17th December 2021",
-    tags: ["post", "blog"],
-    template: "post",
+    date: "17th December 2021"
+    tags: ["post" "blog"]
+    template: "post"
     title: "My first post!"
 }
 ```
