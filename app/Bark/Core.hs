@@ -8,14 +8,17 @@ import Bark.FrontMatter (parse)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Concurrent (threadDelay)
-import Control.Monad (forever, when)
+import Control.Monad (forM_, forever, when)
+import Data.Foldable (for_)
 import Data.Functor.Identity (Identity (Identity, runIdentity))
-import Data.HashMap.Strict as HMap (HashMap, fromList, (!))
+import Data.HashMap.Strict as HashMap (HashMap, empty, fromList, insert, (!))
 import Data.List (stripPrefix)
 import qualified Data.Text as T (Text, pack, unpack)
 import qualified Data.Text.IO as TIO (readFile, writeFile)
 import Data.Text.Lazy (toStrict)
+import qualified Data.Vector as Vec
 import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, listDirectory)
+import System.Directory.Recursive (getFilesRecursive)
 import System.FSNotify (withManager)
 import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceDirectory, replaceExtension, takeBaseName, takeDirectory, (</>))
 import Text.Mustache as Mustache (Template (..), ToMustache (toMustache), compileTemplate, substitute)
@@ -24,7 +27,7 @@ import Text.Mustache.Types (Value (..))
 initProject :: FilePath -> IO ()
 initProject rootDir = do
   createDirectoryIfMissing True rootDir
-  let dirNames = ["src/assets", "src/content", "src/css", "template"]
+  let dirNames = ["src/assets", "src/content", "src/css", "template", "src/static"]
    in mapM_ (createDirectoryIfMissing True . combine rootDir) dirNames
 
 withFilesInDir :: (FilePath -> IO ()) -> FilePath -> IO ()
@@ -74,8 +77,8 @@ mdPathToRelativeURL rootDir mdPath =
   stripPrefix (rootDir </> "src" </> "content" ++ "/") mdPath
     >>= \path -> Just $ replaceExtension path ".html"
 
-convertFile :: FilePath -> FilePath -> IO ()
-convertFile rootDir mdPath = do
+convertFile :: Value -> FilePath -> FilePath -> IO ()
+convertFile allPostsMeta rootDir mdPath = do
   metaData <- readMetaData mdPath
   body <- TIO.readFile mdPath
 
@@ -89,8 +92,11 @@ convertFile rootDir mdPath = do
         (Right html) -> renderHtml html
 
   let postData =
-        HMap.fromList
-          [("content", String $ toStrict htmlContent), ("meta", metaData)]
+        HashMap.fromList
+          [ ("content", String $ toStrict htmlContent),
+            ("meta", metaData),
+            ("posts", allPostsMeta)
+          ]
 
   createDirectoryIfMissing True $ dropFileName targetPath
   template <- readTemplate rootDir mdPath metaData
@@ -103,10 +109,28 @@ buildProject rootDir = do
   let sourceDir = rootDir </> "src"
       contentDir = sourceDir </> "content"
 
+  -- First we prepare the metadata of all the files such that
+  -- it can be made available to the the mustache template
+  allFiles <- getFilesRecursive contentDir
+  let mdFilePaths = filter (isExtensionOf ".md") allFiles
+      allPostsMeta = Vec.empty :: Vec.Vector Value
+      metaOf mdPath = do
+        metaData <- readMetaData mdPath
+        let (postName, meta) = (takeBaseName mdPath, metaData)
+            obj =
+              HashMap.fromList
+                [ (T.pack "name", String $ T.pack postName),
+                  (T.pack "data", meta)
+                ]
+        return $ Object obj
+
+  metaList <- mapM metaOf mdFilePaths
+  let allPostsMeta = Array $ Vec.fromList metaList
+
   -- 1. Convert all .md files to corresponding .html files
   let convert filePath = when (isExtensionOf ".md" filePath) $ do
-        convertFile rootDir filePath
-  withFilesInDir convert contentDir
+        convertFile allPostsMeta rootDir filePath
+  for_ mdFilePaths convert
 
   -- 2. Copy over the assets and css
   let buildDir = rootDir </> "build"
@@ -131,3 +155,4 @@ buildProject rootDir = do
 
   copyAllToBuildDir "css"
   copyAllToBuildDir "assets"
+  copyAllToBuildDir "static"

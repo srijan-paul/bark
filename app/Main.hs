@@ -4,6 +4,7 @@ import Bark.Core (buildProject, initProject)
 import Control.Concurrent (threadDelay)
 import Control.Monad (forever, when)
 import System.Directory (createDirectoryIfMissing, getCurrentDirectory)
+import System.Directory.Recursive
 import System.Environment (getArgs)
 import System.Exit (exitFailure, exitSuccess)
 import System.FSNotify (watchDir, withManager)

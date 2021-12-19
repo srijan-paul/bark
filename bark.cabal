@@ -34,7 +34,8 @@ library
         mustache,
         unordered-containers,
         vector,
-        fsnotify
+        fsnotify,
+        dir-traverse
 
     exposed-modules:
         Bark.Core,
@@ -62,7 +63,8 @@ executable bark
         mustache,
         unordered-containers,
         vector,
-        fsnotify
+        fsnotify,
+        dir-traverse
 
     ghc-options: -threaded
 
