@@ -1,8 +1,11 @@
+{-# LANGUAGE TupleSections #-}
+
 module Bark.FrontMatter (tokenize, Token (..), parse, parseFromTokens) where
 
+import qualified Data.Bifunctor as Bifunctor
 import Data.Char (isAlphaNum, isSpace)
+import Data.Either (isLeft)
 import Data.HashMap.Strict (HashMap, empty, insert)
-import Data.List (takeWhile)
 import qualified Data.List as List
 import Data.Text as T (Text, pack)
 import qualified Data.Vector as Vec (fromList)
@@ -40,52 +43,55 @@ tokenize text@(c : rest)
      in TKey ident : tokenize restOfText
   | otherwise = [TError $ "Unexpected character: " ++ [c]]
 
-parseList :: [Value] -> [Token] -> ([Value], [Token])
+parseList :: [Value] -> [Token] -> Either ParseError ([Value], [Token])
 parseList acc tokens =
   case tokens of
-    TRSqBrac : toks -> (reverse acc, toks)
+    TRSqBrac : toks -> Right (reverse acc, toks)
     tok : toks ->
-      let (value, restTokens) = parse' tokens
-       in parseList (value : acc) restTokens
-    [] -> error "Expected ']' to close list, but found end of input"
+      case parse' tokens of
+        Right (value, restOfTokens) -> parseList (value : acc) restOfTokens
+        Left errMsg -> Left errMsg
+    [] -> Left "Expected ']' to close list, but found end of input"
 
 type MetaMapEntry = (Text, Value)
+
 type MetaMap = HashMap Text Value
 
-parseMapEntry :: [Token] -> (MetaMapEntry, [Token])
-parseMapEntry [TKey key] = error "Expected ':' after map key."
-parseMapEntry (TKey key : [TColon]) = error "Unexpected end of input while reading map entry."
+parseMapEntry :: [Token] -> Either ParseError (MetaMapEntry, [Token])
+parseMapEntry [TKey key] =
+  Left "Expected ':' after map key."
+parseMapEntry (TKey key : [TColon]) =
+  Left "Unexpected end of input while reading map entry."
 parseMapEntry (TKey key : TColon : toks) =
-  let (value, restOfTokens) = parse' toks
-   in ((pack key, value), restOfTokens)
-parseMapEntry _ = error "Bad call to `parseMapEntry`. Please file a bug report T^T"
+  Bifunctor.first (T.pack key,) <$> parse' toks
+parseMapEntry token =
+  Left $ "Unexpected token while parsing map entry: " ++ show token
 
-parseMap :: MetaMap -> [Token] -> (MetaMap, [Token])
-parseMap acc [] = (acc, [])
+parseMap :: MetaMap -> [Token] -> Either ParseError (MetaMap, [Token])
+parseMap acc [] = Right (acc, [])
 parseMap acc tokstream@(token : toks) =
   case token of
     TKey key ->
-      let ((k, v), restOfToks) = parseMapEntry tokstream
-       in parseMap (insert k v acc) restOfToks
-    TRBrac -> (acc, toks)
-    other -> error $ "Unexpected token while reading map: " ++ show other
+      case parseMapEntry tokstream of
+        Right ((k, v), restOfToks) -> parseMap (insert k v acc) restOfToks
+        Left err -> Left err
+    TRBrac -> Right (acc, toks)
+    other -> Left $ "Unexpected token while reading map: " ++ show other
 
-parse' :: [Token] -> (Value, [Token])
+parse' :: [Token] -> Either ParseError (Value, [Token])
 parse' tokstream@(token : rest) =
   case token of
-    TString str -> (String $ T.pack str, rest)
+    TString str -> Right (String $ T.pack str, rest)
     TLSqBrac ->
-      let (values, remainingTokens) = parseList [] rest
-       in (Array $ Vec.fromList values, remainingTokens)
+      Bifunctor.first (Array . Vec.fromList) <$> parseList [] rest
     TLBrac ->
-      let (hmap, remainingTokens) = parseMap empty rest
-       in (Object hmap, remainingTokens)
-    TError errMessage -> error errMessage
-    unknownToken -> error $ "Unexpected token " ++ show unknownToken
-parse' [] = (Null, [])
+      Bifunctor.first Object <$> parseMap empty rest
+    TError errMessage -> Left errMessage
+    unknownToken -> Left $ "Unexpected token " ++ show unknownToken
+parse' [] = Right (Null, [])
 
-parseFromTokens :: [Token] -> Value
-parseFromTokens = fst . parse'
+parseFromTokens :: [Token] -> Either ParseError Value
+parseFromTokens tokens = fst <$> parse' tokens
 
-parse :: String -> Value
+parse :: String -> Either ParseError Value
 parse = parseFromTokens . tokenize

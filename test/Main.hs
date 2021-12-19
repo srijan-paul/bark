@@ -22,9 +22,9 @@ tokenizerTests =
 parserTests :: [Test]
 parserTests =
   [
-    show (parseFromTokens [TString "hello world"]) ~=? "\"hello world\"",
-    show (parseFromTokens [TLSqBrac, TString "a", TString "b", TRSqBrac ]) ~=? "[\"a\",\"b\"]",
-    show (parseFromTokens [TLSqBrac, TRSqBrac]) ~=? "[]"
+    show (parseFromTokens [TString "hello world"]) ~=? "Right \"hello world\"",
+    show (parseFromTokens [TLSqBrac, TString "a", TString "b", TRSqBrac ]) ~=? "Right [\"a\",\"b\"]",
+    show (parseFromTokens [TLSqBrac, TRSqBrac]) ~=? "Right []"
   ]
 
 main :: IO ()

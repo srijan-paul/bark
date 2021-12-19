@@ -47,8 +47,10 @@ readMetaData path = do
   content <-
     if metaExists
       then readFile metaDataPath
-      else return ""
-  return $ parse content
+      else error $ "Metadata does not exist for file " ++ path
+  case parse content of
+    Left errorMsg -> error $ "Error while reading " ++ path ++ "\n" ++ errorMsg
+    Right value -> return value
 
 readTemplate :: FilePath -> FilePath -> Value -> IO Template
 readTemplate baseDir path (Object map) = do
@@ -67,7 +69,7 @@ readTemplate baseDir path (Object map) = do
         Right template -> return template
 readTemplate _ _ _ = error "Post metadata must be an object"
 
-mdPathToRelativeURL:: FilePath -> FilePath -> Maybe FilePath
+mdPathToRelativeURL :: FilePath -> FilePath -> Maybe FilePath
 mdPathToRelativeURL rootDir mdPath =
   stripPrefix (rootDir </> "src" </> "content" ++ "/") mdPath
     >>= \path -> Just $ replaceExtension path ".html"
@@ -79,7 +81,7 @@ convertFile rootDir mdPath = do
 
   let targetPath = case mdPathToRelativeURL rootDir mdPath of
         Nothing -> error $ "Internal error : Bad file path: " ++ mdPath
-        Just path -> rootDir </> "build" </> path 
+        Just path -> rootDir </> "build" </> path
 
   let res = commonmarkWith (defaultSyntaxSpec <> gfmExtensions) mdPath body :: (Identity (Either ParseError (Html ())))
       htmlContent = case runIdentity res of
