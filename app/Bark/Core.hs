@@ -60,7 +60,7 @@ readTemplate baseDir path (Object map) = do
   let templateName = case map ! T.pack "template" of
         String name -> name
         _ -> error "template name must be a string"
-      templatePath = baseDir </> "template" </> T.unpack templateName ++ ".html"
+      templatePath = baseDir </> "template" </> T.unpack templateName ++ ".mustache"
 
   templateExists <- doesFileExist templatePath
   if not templateExists
