@@ -76,21 +76,17 @@ It represents which HTML template to use when rendering the post.</p>
 <h3 id="using-templates">Using templates</h3>
 <p>A bark template is written in the <a href="https://mustache.github.io/">mustache</a> templating language.
 If you've used HTML, then you already know most of what you need to know.
-In the mustache template, there are two prexisting variables:</p>
-<ol>
-<li><code>content</code>: The markdown content of the page, now converted to HTML.
-</li>
-<li><code>meta</code>: The metadata object present in the <code>post.meta</code> file.
-</li>
-</ol>
-<p>Here is an example template:</p>
+In the mustache template, there are some prexisting variables.</p>
+<p>The <code>content</code> is a string containing the markdown content of the page, now converted to HTML.
+The other variables are directy taken from the metadata in the meta file.</p>
+<p>Here is an example template, <code>post.mustache</code>:</p>
 <pre><code class="language-html">&lt;html&gt;
   &lt;head&gt;
-    &lt;title&gt;{{ meta.title }}&lt;/title&gt;
+    &lt;title&gt;{{ title }}&lt;/title&gt;
   &lt;/head&gt;
   &lt;body&gt;
     &lt;div class=&quot;main&quot;&gt;
-      Date: {{meta.date}}
+      Date: {{ date }}
       &lt;!-- The '&amp;' is neccessary when plugging in HTML,
            otherwise the output would be sanitized --&gt;
       {{&amp;content}}

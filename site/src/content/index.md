@@ -95,21 +95,21 @@ It represents which HTML template to use when rendering the post.
 
 A bark template is written in the [mustache](https://mustache.github.io/) templating language.
 If you've used HTML, then you already know most of what you need to know.
-In the mustache template, there are two prexisting variables:
+In the mustache template, there are some prexisting variables.
 
-1. `content`: The markdown content of the page, now converted to HTML.
-2. `meta`: The metadata object present in the `post.meta` file.
+The `content` is a string containing the markdown content of the page, now converted to HTML.
+The other variables are directy taken from the metadata in the meta file.
 
-Here is an example template:
+Here is an example template, `post.mustache`:
 
 ```html
 <html>
   <head>
-    <title>{{ meta.title }}</title>
+    <title>{{ title }}</title>
   </head>
   <body>
     <div class="main">
-      Date: {{meta.date}}
+      Date: {{ date }}
       <!-- The '&' is neccessary when plugging in HTML,
            otherwise the output would be sanitized -->
       {{&content}}
