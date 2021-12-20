@@ -4,9 +4,7 @@ module Bark.FrontMatter (tokenize, Token (..), parse, parseFromTokens) where
 
 import qualified Data.Bifunctor as Bifunctor
 import Data.Char (isAlphaNum, isSpace)
-import Data.Either (isLeft)
 import Data.HashMap.Strict (HashMap, empty, insert)
-import qualified Data.List as List
 import Data.Text as T (Text, pack)
 import qualified Data.Vector as Vec (fromList)
 import Text.Mustache.Types (Value (..))

@@ -7,21 +7,19 @@ where
 import Bark.FrontMatter (parse)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
-import Control.Concurrent (threadDelay)
-import Control.Monad (forM_, forever, when)
+import Control.Monad (when)
 import Data.Foldable (for_)
-import Data.Functor.Identity (Identity (Identity, runIdentity))
-import Data.HashMap.Strict as HashMap (HashMap, empty, fromList, insert, (!))
+import Data.Functor.Identity (Identity (runIdentity))
+import Data.HashMap.Strict as HashMap (fromList, (!))
 import Data.List (stripPrefix)
-import qualified Data.Text as T (Text, pack, unpack)
+import qualified Data.Text as T (pack, unpack)
 import qualified Data.Text.IO as TIO (readFile, writeFile)
 import Data.Text.Lazy (toStrict)
 import qualified Data.Vector as Vec
 import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, listDirectory)
 import System.Directory.Recursive (getFilesRecursive)
-import System.FSNotify (withManager)
-import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceDirectory, replaceExtension, takeBaseName, takeDirectory, (</>))
-import Text.Mustache as Mustache (Template (..), ToMustache (toMustache), compileTemplate, substitute)
+import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceExtension, takeBaseName, takeDirectory, (</>))
+import Text.Mustache as Mustache (Template (..), compileTemplate, substitute)
 import Text.Mustache.Types (Value (..))
 
 initProject :: FilePath -> IO ()
@@ -56,9 +54,9 @@ readMetaData path = do
     Right value -> return value
 
 readTemplate :: FilePath -> FilePath -> Value -> IO Template
-readTemplate baseDir path (Object map) = do
-  let templateName = case map ! T.pack "template" of
-        String name -> name
+readTemplate baseDir path (Object metadata) = do
+  let templateName = case metadata ! T.pack "template" of
+        String tName -> tName
         _ -> error "template name must be a string"
       templatePath = baseDir </> "template" </> T.unpack templateName ++ ".mustache"
 
@@ -125,11 +123,11 @@ buildProject rootDir = do
         return $ Object obj
 
   metaList <- mapM metaOf mdFilePaths
-  let allPostsMeta = Array $ Vec.fromList metaList
+  let postsMeta = Array $ Vec.fromList metaList
 
   -- 1. Convert all .md files to corresponding .html files
   let convert filePath = when (isExtensionOf ".md" filePath) $ do
-        convertFile allPostsMeta rootDir filePath
+        convertFile postsMeta rootDir filePath
   for_ mdFilePaths convert
 
   -- 2. Copy over the assets and css
