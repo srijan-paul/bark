@@ -16,16 +16,38 @@ import qualified Data.Text as T (pack, unpack)
 import qualified Data.Text.IO as TIO (readFile, writeFile)
 import Data.Text.Lazy (toStrict)
 import qualified Data.Vector as Vec
-import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, doesFileExist, listDirectory)
+import System.Directory
+  ( copyFile,
+    createDirectoryIfMissing,
+    doesDirectoryExist,
+    doesFileExist,
+    listDirectory,
+  )
 import System.Directory.Recursive (getFilesRecursive)
-import System.FilePath.Posix (combine, dropFileName, isExtensionOf, replaceExtension, takeBaseName, takeDirectory, (</>))
+import System.FilePath.Posix
+  ( combine,
+    dropExtension,
+    dropFileName,
+    isExtensionOf,
+    replaceExtension,
+    takeBaseName,
+    takeDirectory,
+    (</>),
+  )
 import Text.Mustache as Mustache (Template (..), compileTemplate, substitute)
 import Text.Mustache.Types (Value (..))
 
 initProject :: FilePath -> IO ()
 initProject rootDir = do
   createDirectoryIfMissing True rootDir
-  let dirNames = ["src/assets", "src/content", "src/css", "template", "src/static"]
+  let dirNames =
+        [ "src/assets",
+          "src/content",
+          "src/css",
+          "template",
+          "src/static",
+          "src/copy-over"
+        ]
    in mapM_ (createDirectoryIfMissing True . combine rootDir) dirNames
 
 withFilesInDir :: (FilePath -> IO ()) -> FilePath -> IO ()
@@ -70,10 +92,22 @@ readTemplate baseDir path (Object metadata) = do
         Right template -> return template
 readTemplate _ _ _ = error "Post metadata must be an object"
 
+-- | Given the project's root directory (`rootDir`) and the absolute path of a
+--  markdown file (`mdPath`), returns a string representing the URL slug.
+--  Note that the HTML output of markdown files named anything but `index` will be put in a file
+--  called `index.html` inside a folder having the same name as the markdown file.
+--
+-- >>> mdPathToRelativeURL "foo" "foo/src/content/bar/file.md"
+-- Just "bar/file/index.html"
+--  >>> mdPathToRelativeURL "foo" "foo/src/content/bar/index.md"
+-- Just "bar/index.html"
 mdPathToRelativeURL :: FilePath -> FilePath -> Maybe FilePath
 mdPathToRelativeURL rootDir mdPath =
   stripPrefix (rootDir </> "src" </> "content" ++ "/") mdPath
-    >>= \path -> Just $ replaceExtension path ".html"
+    >>= \path ->
+      if takeBaseName path /= "index"
+        then Just $ dropExtension path </> "index.html"
+        else Just $ replaceExtension path  ".html"
 
 convertFile :: Value -> FilePath -> FilePath -> IO ()
 convertFile allPostsMeta rootDir mdPath = do
@@ -136,7 +170,7 @@ buildProject rootDir = do
         fileExists <- doesFileExist filePath
         when fileExists $ do
           case Data.List.stripPrefix sourceDir filePath of
-            Nothing -> error "some error ocurred :("
+            Nothing -> error "an unknown error occured, please file a bug report."
             Just path ->
               let dstPath = buildDir ++ path
                   dstDir = takeDirectory dstPath
@@ -154,3 +188,19 @@ buildProject rootDir = do
   copyAllToBuildDir "css"
   copyAllToBuildDir "assets"
   copyAllToBuildDir "static"
+
+  -- copy over everything in the `copy-over` directory
+  let copyDirPath = sourceDir </> "copy-over"
+  isDir <- doesDirectoryExist copyDirPath
+
+  when isDir $ do
+    let copyToBuildRoot path = do
+          let srcPath = stripPrefix (copyDirPath ++ "/") path
+              dstPath = fmap (buildDir </>) srcPath
+          case (srcPath, dstPath) of
+            (Just src, Just dst) -> do
+              createDirectoryIfMissing True dst
+              copyFile src dst
+            _ -> return ()
+    filesToCopyOver <- getFilesRecursive copyDirPath
+    mapM_ copyToBuildRoot filesToCopyOver
