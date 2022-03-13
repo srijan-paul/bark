@@ -4,7 +4,7 @@ module Bark.Core
   )
 where
 
-import Bark.FrontMatter (parse)
+import Bark.FrontMatter (parseString)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Monad (when)
@@ -71,7 +71,7 @@ readMetaData path = do
     if metaExists
       then readFile metaDataPath
       else error $ "Metadata does not exist for file " ++ path
-  case parse content of
+  case parseString content of
     Left errorMsg -> error $ "Error while reading " ++ path ++ "\n" ++ errorMsg
     Right value -> return value
 
@@ -189,18 +189,20 @@ buildProject rootDir = do
   copyAllToBuildDir "assets"
   copyAllToBuildDir "static"
 
-  -- copy over everything in the `copy-over` directory
-  let copyDirPath = sourceDir </> "copy-over"
+  -- copy over everything in the `copy` directory
+  let copyDirPath = sourceDir </> "copy"
   isDir <- doesDirectoryExist copyDirPath
 
   when isDir $ do
     let copyToBuildRoot path = do
+          -- srcPath = path of the file to copy relative to `copy` directory.
+          -- dstPath = absolute path of the file to copy
           let srcPath = stripPrefix (copyDirPath ++ "/") path
               dstPath = fmap (buildDir </>) srcPath
           case (srcPath, dstPath) of
             (Just src, Just dst) -> do
-              createDirectoryIfMissing True dst
-              copyFile src dst
+              createDirectoryIfMissing True $ dropFileName dst
+              copyFile path dst
             _ -> return ()
     filesToCopyOver <- getFilesRecursive copyDirPath
     mapM_ copyToBuildRoot filesToCopyOver

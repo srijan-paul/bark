@@ -1,6 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 
-module Bark.FrontMatter (tokenize, Token (..), parse, parseFromTokens) where
+module Bark.FrontMatter (tokenize, Token (..), parseString, parseFromTokens) where
 
 import qualified Data.Bifunctor as Bifunctor
 import Data.Char (isAlphaNum, isSpace)
@@ -22,6 +22,9 @@ data Token
 
 type ParseError = String
 
+isIdChar :: Char -> Bool
+isIdChar c = isAlphaNum c || c == '_'
+
 tokenize :: String -> [Token]
 tokenize "" = []
 tokenize text@(c : rest)
@@ -36,10 +39,35 @@ tokenize text@(c : rest)
      in if restOfText /= ""
           then TString stringValue : tokenize (tail restOfText)
           else [TError "Unterminated string"]
-  | isAlphaNum c =
-    let (ident, restOfText) = span isAlphaNum text
+  | isIdChar c =
+    let (ident, restOfText) = span isIdChar text
      in TKey ident : tokenize restOfText
   | otherwise = [TError $ "Unexpected character: " ++ [c]]
+
+newtype Parser a = Parser (String -> Either ParseError (a, String))
+
+parse :: Parser a -> String -> Either ParseError (a, String)
+parse (Parser p) = p
+
+instance Functor Parser where
+  fmap f p = Parser $ \inp -> case parse p inp of
+    Left errMsg -> Left errMsg
+    Right (a, restOfInp) -> Right (f a, restOfInp)
+
+instance Applicative Parser where
+  pure v = Parser $ \inp -> Right (v, inp)
+  (Parser p) <*> (Parser q) = Parser $ \inp -> case q inp of
+    Left errMsg -> Left errMsg
+    Right (a, restOfInp) -> case p restOfInp of
+      Left s -> Left s
+      Right (f, rest) -> Right (f a, rest)
+
+instance Monad Parser where
+  p >>= f = Parser $ \inp -> case parse p inp of
+    Left s -> Left s
+    Right (a, rest) -> parse (f a) rest
+
+  return v = Parser $ \inp -> Right (v, inp)
 
 parseList :: [Value] -> [Token] -> Either ParseError ([Value], [Token])
 parseList acc tokens =
@@ -80,10 +108,8 @@ parse' :: [Token] -> Either ParseError (Value, [Token])
 parse' tokstream@(token : rest) =
   case token of
     TString str -> Right (String $ T.pack str, rest)
-    TLSqBrac ->
-      Bifunctor.first (Array . Vec.fromList) <$> parseList [] rest
-    TLBrac ->
-      Bifunctor.first Object <$> parseMap empty rest
+    TLSqBrac -> Bifunctor.first (Array . Vec.fromList) <$> parseList [] rest
+    TLBrac -> Bifunctor.first Object <$> parseMap empty rest
     TError errMessage -> Left errMessage
     unknownToken -> Left $ "Unexpected token " ++ show unknownToken
 parse' [] = Right (Null, [])
@@ -91,5 +117,5 @@ parse' [] = Right (Null, [])
 parseFromTokens :: [Token] -> Either ParseError Value
 parseFromTokens tokens = fst <$> parse' tokens
 
-parse :: String -> Either ParseError Value
-parse = parseFromTokens . tokenize
+parseString :: String -> Either ParseError Value
+parseString = parseFromTokens . tokenize

@@ -1,4 +1,4 @@
-import Bark.FrontMatter (Token (..), tokenize, parse, parseFromTokens)
+import Bark.FrontMatter (Token (..), tokenize, parseString, parseFromTokens)
 import Test.HUnit (Assertion, Test (..), runTestTT, runTestTTAndExit, runTestText, (~=?), assertEqual)
 import Text.Mustache.Types ( Value(..) )
 import Data.Text (pack)
