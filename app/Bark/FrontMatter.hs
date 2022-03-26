@@ -49,26 +49,6 @@ newtype Parser a = Parser (String -> Either ParseError (a, String))
 parse :: Parser a -> String -> Either ParseError (a, String)
 parse (Parser p) = p
 
-instance Functor Parser where
-  fmap f p = Parser $ \inp -> case parse p inp of
-    Left errMsg -> Left errMsg
-    Right (a, restOfInp) -> Right (f a, restOfInp)
-
-instance Applicative Parser where
-  pure v = Parser $ \inp -> Right (v, inp)
-  (Parser p) <*> (Parser q) = Parser $ \inp -> case q inp of
-    Left errMsg -> Left errMsg
-    Right (a, restOfInp) -> case p restOfInp of
-      Left s -> Left s
-      Right (f, rest) -> Right (f a, rest)
-
-instance Monad Parser where
-  p >>= f = Parser $ \inp -> case parse p inp of
-    Left s -> Left s
-    Right (a, rest) -> parse (f a) rest
-
-  return v = Parser $ \inp -> Right (v, inp)
-
 parseList :: [Value] -> [Token] -> Either ParseError ([Value], [Token])
 parseList acc tokens =
   case tokens of
