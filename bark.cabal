@@ -1,9 +1,9 @@
-cabal-version:      2.4
+cabal-version:      3.6
 name:               bark
 version:            0.1.0.0
 
 -- A short (one-line) description of the package.
-synopsis: A static site generator for injuly's personal use.
+synopsis: A minimal static site generator.
 
 -- A longer description of the package.
 -- description:

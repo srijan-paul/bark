@@ -18,14 +18,13 @@ Using bark is as simple as it gets.
 
 ### One time setup
 
-Before we continue, make sure you have added `bark` to your `PATH` environment variable.
-If you're on Linux and are using bash, then just copy paste the following line into your terminal:
+You'll need [cabal](https://www.haskell.org/cabal/) and [ghc](https://www.haskell.org/ghc/) installed to
+install bark. Once you've made sure you have them installed, clone the GitHub repository and run this command:
 
 ```sh
-$ export PATH="path/to/bark":$PATH >> ~/.zshrc
+$ cabal install exe:bark --overwrite-policy=always
 ```
 
-Replace `/path/to/bark` with the actual path to the `bark` executable.
 Let's do a quick sanity check to ensure all's good.
 If you get something similar to what's shown below when you enter `bark` into the command line, then we're all set!
 
@@ -88,7 +87,7 @@ And the corresponding metadata in a `post.meta` file:
 }
 ```
 
-The `template` key **must** be present in a metadata file.
+The `template` key is special, and **must** be present in a metadata file.
 It represents which HTML template to use when rendering the post.
 
 ### Using templates
@@ -98,20 +97,22 @@ If you've used HTML, then you already know most of what you need to know.
 In the mustache template, there are some prexisting variables.
 
 The `content` is a string containing the markdown content of the page, now converted to HTML.
-The other variables are directy taken from the metadata in the meta file.
+The other global variables correspond to the keys listed in a `.meta` file.
 
 Here is an example template, `post.mustache`:
 
 ```html
 <html>
   <head>
+    <!-- This will be replaced with the `title` key in the `.meta` file.  -->
     <title>{{ title }}</title>
   </head>
   <body>
     <div class="main">
-      Date: {{ date }}
+      <!-- replaced by the `date` key in the `.meta` file -->
+      Date: {{ date }} 
       <!-- The '&' is neccessary when plugging in HTML,
-           otherwise the output would be sanitized -->
+           otherwise the output will be sanitized, hence escaping the `<` and `>` characters -->
       {{&content}}
     </div>
   </body>
@@ -142,7 +143,7 @@ You can find the source [here](https://github.com/srijan-paul/bark/tree/main/sit
 ## FAQ
 
 **Q. How can I get syntax highlighting?**
-  
+
 Same way I did on this page.
 You could use a syntax highlighting library like [highlight.js](https://highlightjs.org/) and initialize it in a `<script>` tag in your template to embed it. It only takes 5 lines of code!
 
@@ -157,7 +158,7 @@ The build directory structure mirrors the source.
 
 **Q. My question isn't listed here !**
 
-That's okay, you can always file an [issue](https://github.com/srijan-paul/bark/issues) to submit bugs/suggestions,
+You can always file an [issue](https://github.com/srijan-paul/bark/issues) to submit bugs/suggestions,
 or get in touch with me on my [twitter](https://twitter.com/_injuly) or discord - **injuly#6820**.
 
 ## That's it!

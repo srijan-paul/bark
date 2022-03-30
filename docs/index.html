@@ -25,12 +25,11 @@ When finished, you should see an executable in <code>dist/bark</code>.</p>
 <h2 id="usage">Usage</h2>
 <p>Using bark is as simple as it gets.</p>
 <h3 id="one-time-setup">One time setup</h3>
-<p>Before we continue, make sure you have added <code>bark</code> to your <code>PATH</code> environment variable.
-If you're on Linux and are using bash, then just copy paste the following line into your terminal:</p>
-<pre><code class="language-sh">$ export PATH=&quot;path/to/bark&quot;:$PATH &gt;&gt; ~/.zshrc
+<p>You'll need <a href="https://www.haskell.org/cabal/">cabal</a> and <a href="https://www.haskell.org/ghc/">ghc</a> installed to
+install bark. Once you've made sure you have them installed, clone the GitHub repository and run this command:</p>
+<pre><code class="language-sh">$ cabal install exe:bark --overwrite-policy=always
 </code></pre>
-<p>Replace <code>/path/to/bark</code> with the actual path to the <code>bark</code> executable.
-Let's do a quick sanity check to ensure all's good.
+<p>Let's do a quick sanity check to ensure all's good.
 If you get something similar to what's shown below when you enter <code>bark</code> into the command line, then we're all set!</p>
 <pre><code class="language-sh">$ bark
 Bark v0.1.0. commands available:
@@ -71,24 +70,26 @@ This is my first post
     title: &quot;My first post!&quot;
 }
 </code></pre>
-<p>The <code>template</code> key <strong>must</strong> be present in a metadata file.
+<p>The <code>template</code> key is special, and <strong>must</strong> be present in a metadata file.
 It represents which HTML template to use when rendering the post.</p>
 <h3 id="using-templates">Using templates</h3>
 <p>A bark template is written in the <a href="https://mustache.github.io/">mustache</a> templating language.
 If you've used HTML, then you already know most of what you need to know.
 In the mustache template, there are some prexisting variables.</p>
 <p>The <code>content</code> is a string containing the markdown content of the page, now converted to HTML.
-The other variables are directy taken from the metadata in the meta file.</p>
+The other global variables correspond to the keys listed in a <code>.meta</code> file.</p>
 <p>Here is an example template, <code>post.mustache</code>:</p>
 <pre><code class="language-html">&lt;html&gt;
   &lt;head&gt;
+    &lt;!-- This will be replaced with the `title` key in the `.meta` file.  --&gt;
     &lt;title&gt;{{ title }}&lt;/title&gt;
   &lt;/head&gt;
   &lt;body&gt;
     &lt;div class=&quot;main&quot;&gt;
-      Date: {{ date }}
+      &lt;!-- replaced by the `date` key in the `.meta` file --&gt;
+      Date: {{ date }} 
       &lt;!-- The '&amp;' is neccessary when plugging in HTML,
-           otherwise the output would be sanitized --&gt;
+           otherwise the output will be sanitized, hence escaping the `&lt;` and `&gt;` characters --&gt;
       {{&amp;content}}
     &lt;/div&gt;
   &lt;/body&gt;
@@ -116,7 +117,7 @@ The build directory structure mirrors the source.</p>
 <p><strong>Q. Does bark support images and other media content?</strong></p>
 <p><img src="assets/cookedcat.jpg" alt="cat-image" /></p>
 <p><strong>Q. My question isn't listed here !</strong></p>
-<p>That's okay, you can always file an <a href="https://github.com/srijan-paul/bark/issues">issue</a> to submit bugs/suggestions,
+<p>You can always file an <a href="https://github.com/srijan-paul/bark/issues">issue</a> to submit bugs/suggestions,
 or get in touch with me on my <a href="https://twitter.com/_injuly">twitter</a> or discord - <strong>injuly#6820</strong>.</p>
 <h2 id="thats-it">That's it!</h2>
 <p>You've done it.</p>
