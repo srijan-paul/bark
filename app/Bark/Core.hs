@@ -41,12 +41,12 @@ initProject :: FilePath -> IO ()
 initProject rootDir = do
   createDirectoryIfMissing True rootDir
   let dirNames =
-        [ "src/assets",
-          "src/content",
-          "src/css",
+        [ "src" </> "assets",
+          "src" </> "content",
+          "src" </> "css",
           "template",
-          "src/static",
-          "src/copy-over"
+          "src" </> "static",
+          "src" </> "copy-over"
         ]
    in mapM_ (createDirectoryIfMissing True . combine rootDir) dirNames
 
@@ -107,7 +107,7 @@ mdPathToRelativeURL rootDir mdPath =
     >>= \path ->
       if takeBaseName path /= "index"
         then Just $ dropExtension path </> "index.html"
-        else Just $ replaceExtension path  ".html"
+        else Just $ replaceExtension path ".html"
 
 convertFile :: Value -> FilePath -> FilePath -> IO ()
 convertFile allPostsMeta rootDir mdPath = do
