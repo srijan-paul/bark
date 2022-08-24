@@ -14,15 +14,14 @@ import Data.HashMap.Strict as HashMap (fromList, (!))
 import Data.List (stripPrefix)
 import qualified Data.Text as T (pack, unpack)
 import qualified Data.Text.IO as TIO (readFile, writeFile)
-import Data.Text.Lazy (toStrict)
 import qualified Data.Vector as Vec
 import System.Directory
   ( copyFile,
     createDirectoryIfMissing,
     doesDirectoryExist,
     doesFileExist,
-    listDirectory,
   )
+import Misc.IOUtil (withFilesInDir)
 import System.Directory.Recursive (getFilesRecursive)
 import System.FilePath.Posix
   ( combine,
@@ -36,6 +35,7 @@ import System.FilePath.Posix
   )
 import Text.Mustache as Mustache (Template (..), compileTemplate, substitute)
 import Text.Mustache.Types (Value (..))
+import qualified Data.Text.Lazy as TL
 
 initProject :: FilePath -> IO ()
 initProject rootDir = do
@@ -49,19 +49,6 @@ initProject rootDir = do
           "src" </> "copy-over"
         ]
    in mapM_ (createDirectoryIfMissing True . combine rootDir) dirNames
-
-withFilesInDir :: (FilePath -> IO ()) -> FilePath -> IO ()
-withFilesInDir _ "" = return ()
-withFilesInDir callback path = do
-  isFile <- doesFileExist path
-  if isFile
-    then callback path
-    else do
-      -- `path` is itself a directory, and needs to be recursed over
-      contents <- listDirectory path
-      mapM_
-        (withFilesInDir callback . combine path)
-        contents
 
 readMetaData :: FilePath -> IO Value
 readMetaData path = do
@@ -109,6 +96,12 @@ mdPathToRelativeURL rootDir mdPath =
         then Just $ dropExtension path </> "index.html"
         else Just $ replaceExtension path ".html"
 
+mdToHtml allPostsMeta rootDir mdPath = do
+  return ()
+
+-- | Converts a markdown file to its corresponding HTML
+-- | document, and then writes it to the appropriate location
+-- | in the filesystem
 convertFile :: Value -> FilePath -> FilePath -> IO ()
 convertFile allPostsMeta rootDir mdPath = do
   metaData <- readMetaData mdPath
@@ -125,7 +118,7 @@ convertFile allPostsMeta rootDir mdPath = do
 
   let postData =
         HashMap.fromList
-          [ ("content", String $ toStrict htmlContent),
+          [ ("content", String $ TL.toStrict htmlContent),
             ("meta", metaData),
             ("posts", allPostsMeta)
           ]

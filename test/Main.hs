@@ -27,5 +27,6 @@ parserTests =
     show (parseFromTokens [TLSqBrac, TRSqBrac]) ~=? "Right []"
   ]
 
+
 main :: IO ()
 main = runTestTTAndExit $ TestList $ tokenizerTests ++ parserTests
