@@ -21,7 +21,7 @@ import System.Directory
     doesDirectoryExist,
     doesFileExist,
   )
-import Misc.IOUtil (withFilesInDir)
+import Bark.Internal.IOUtil (withFilesInDir)
 import System.Directory.Recursive (getFilesRecursive)
 import System.FilePath.Posix
   ( combine,

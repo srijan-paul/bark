@@ -1,4 +1,9 @@
-module Misc.IOUtil (tryReadFile, tryReadFileTL, withFilesInDir) where
+module Bark.Internal.IOUtil
+  ( tryReadFile,
+    tryReadFileTL,
+    withFilesInDir,
+  )
+where
 
 import Control.Monad (when)
 import qualified Data.Text.Lazy as TL
@@ -17,7 +22,9 @@ type Result a = Either ErrMsg a
 tryReadFileWith :: (FilePath -> IO a) -> FilePath -> IO (Result a)
 tryReadFileWith reader path = do
   exist <- doesFileExist path
-  Right <$> reader path
+  if exist
+    then Right <$> reader path
+    else return $ Left $ "File does not exist: '" ++ path ++ "'"
 
 -- | Read a file from the filesystem and return it's contents
 -- | as a lazy text object. If the file does not exist, return

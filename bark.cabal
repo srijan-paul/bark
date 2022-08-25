@@ -21,10 +21,24 @@ extra-source-files:
     CHANGELOG.md
     README.md
 
+library bark-internal
+    hs-source-dirs: app
+    build-depends:
+        base,
+        containers,
+        mustache,
+        text,
+        filepath,
+        dir-traverse,
+        directory
+    exposed-modules:
+        Bark.Internal.IOUtil
+
 library
     hs-source-dirs: app
     build-depends:
         base ^>=4.14.3.0,
+        bark:bark-internal,
         commonmark,
         commonmark-extensions,
         text,
@@ -41,27 +55,14 @@ library
         Bark.Core,
         Bark.FrontMatter
 
--- library
---     hs-source-dirs: src
---     build-depends:
---         base,
---         bark,
---         containers,
---         mustache,
---         text
---         filepath,
---         dir-traverse
---     exposed-modules:
---         Misc.IOUtil
- 
+
 executable bark
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
     other-modules:
         Bark.Core,
-        Bark.FrontMatter,
-        Misc.IOUtil
+        Bark.FrontMatter
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
@@ -93,10 +94,11 @@ Test-Suite test-bark
     hs-source-dirs:     test
     build-depends:
         base,
+        bark,
+        bark:bark-internal,
         test-framework,
         test-framework-hunit,
         HUnit,
         containers,
-        bark,
         mustache,
         text
