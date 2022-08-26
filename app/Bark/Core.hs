@@ -5,6 +5,7 @@ module Bark.Core
 where
 
 import Bark.FrontMatter (parseString)
+import Bark.Internal.IOUtil (withFilesInDir)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Monad (when)
@@ -14,6 +15,7 @@ import Data.HashMap.Strict as HashMap (fromList, (!))
 import Data.List (stripPrefix)
 import qualified Data.Text as T (pack, unpack)
 import qualified Data.Text.IO as TIO (readFile, writeFile)
+import qualified Data.Text.Lazy as TL
 import qualified Data.Vector as Vec
 import System.Directory
   ( copyFile,
@@ -21,7 +23,6 @@ import System.Directory
     doesDirectoryExist,
     doesFileExist,
   )
-import Bark.Internal.IOUtil (withFilesInDir)
 import System.Directory.Recursive (getFilesRecursive)
 import System.FilePath.Posix
   ( combine,
@@ -35,7 +36,6 @@ import System.FilePath.Posix
   )
 import Text.Mustache as Mustache (Template (..), compileTemplate, substitute)
 import Text.Mustache.Types (Value (..))
-import qualified Data.Text.Lazy as TL
 
 initProject :: FilePath -> IO ()
 initProject rootDir = do
@@ -129,28 +129,35 @@ convertFile allPostsMeta rootDir mdPath = do
   let output = substitute template postData
   TIO.writeFile targetPath output
 
+-- | Returns a list containing the paths to all markdown files in a directory, and its subdirectories
+getMdFilesRecursive :: FilePath -> IO [FilePath]
+getMdFilesRecursive dirPath = do
+  allFiles <- getFilesRecursive dirPath
+  return $ filter (isExtensionOf ".md") allFiles
+
+-- | Given a list of paths to `.md` files, return the corresponding metadata, in the same order.
+-- | It is assumed that a file at path "foo/bar/baz.md", will have its metadata at "foo/bar/baz.meta".
+getMetaDataOfPosts :: [FilePath] -> IO Value
+getMetaDataOfPosts mdPaths = do
+  metaList <- mapM readMetaDataOf mdPaths
+  return (Array $ Vec.fromList metaList)
+  where
+    readMetaDataOf :: FilePath -> IO Value
+    readMetaDataOf mdPath = do
+      metaData <- readMetaData mdPath
+      let (postName, meta) = (String $ T.pack $ takeBaseName mdPath, metaData)
+      return
+        (Object $ HashMap.fromList [(T.pack "name", postName), (T.pack "data", meta)])
+
 buildProject :: FilePath -> IO ()
 buildProject rootDir = do
   let sourceDir = rootDir </> "src"
       contentDir = sourceDir </> "content"
 
-  -- First we prepare the metadata of all the files such that
+  -- First we prepare the metadata of all the files so that
   -- it can be made available to the the mustache template
-  allFiles <- getFilesRecursive contentDir
-  let mdFilePaths = filter (isExtensionOf ".md") allFiles
-      allPostsMeta = Vec.empty :: Vec.Vector Value
-      metaOf mdPath = do
-        metaData <- readMetaData mdPath
-        let (postName, meta) = (takeBaseName mdPath, metaData)
-            obj =
-              HashMap.fromList
-                [ (T.pack "name", String $ T.pack postName),
-                  (T.pack "data", meta)
-                ]
-        return $ Object obj
-
-  metaList <- mapM metaOf mdFilePaths
-  let postsMeta = Array $ Vec.fromList metaList
+  mdFilePaths <- getMdFilesRecursive contentDir
+  postsMeta <- getMetaDataOfPosts mdFilePaths
 
   -- 1. Convert all .md files to corresponding .html files
   let convert filePath = when (isExtensionOf ".md" filePath) $ do
@@ -182,8 +189,8 @@ buildProject rootDir = do
   copyAllToBuildDir "assets"
   copyAllToBuildDir "static"
 
-  -- copy over everything in the `copy` directory
-  let copyDirPath = sourceDir </> "copy"
+  -- copy over everything in the `copy-over` directory
+  let copyDirPath = sourceDir </> "copy-over"
   isDir <- doesDirectoryExist copyDirPath
 
   when isDir $ do
