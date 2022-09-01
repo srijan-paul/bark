@@ -9,7 +9,6 @@ import Bark.Internal.IOUtil (withFilesInDir)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Monad (when)
-import Data.Foldable (for_)
 import Data.Functor.Identity (Identity (runIdentity))
 import Data.HashMap.Strict as HashMap (fromList, (!))
 import Data.List (stripPrefix)
@@ -80,9 +79,9 @@ readTemplate baseDir path (Object metadata) = do
 readTemplate _ _ _ = error "Post metadata must be an object"
 
 -- | Given the project's root directory (`rootDir`) and the absolute path of a
---  markdown file (`mdPath`), returns a string representing the URL slug.
---  Note that the HTML output of markdown files named anything but `index` will be put in a file
---  called `index.html` inside a folder having the same name as the markdown file.
+-- | markdown file (`mdPath`), returns a string representing the URL slug.
+-- | Note that the HTML output of markdown files named anything but `index` will be put in a file
+-- | called `index.html` inside a folder having the same name as the markdown file.
 --
 -- >>> mdPathToRelativeURL "foo" "foo/src/content/bar/file.md"
 -- Just "bar/file/index.html"
@@ -92,12 +91,10 @@ mdPathToRelativeURL :: FilePath -> FilePath -> Maybe FilePath
 mdPathToRelativeURL rootDir mdPath =
   stripPrefix (rootDir </> "src" </> "content" ++ "/") mdPath
     >>= \path ->
-      if takeBaseName path /= "index"
-        then Just $ dropExtension path </> "index.html"
-        else Just $ replaceExtension path ".html"
-
-mdToHtml allPostsMeta rootDir mdPath = do
-  return ()
+      Just $
+        if takeBaseName path /= "index"
+          then dropExtension path </> "index.html"
+          else replaceExtension path ".html"
 
 -- | Converts a markdown file to its corresponding HTML
 -- | document, and then writes it to the appropriate location
@@ -108,7 +105,7 @@ convertFile allPostsMeta rootDir mdPath = do
   body <- TIO.readFile mdPath
 
   let targetPath = case mdPathToRelativeURL rootDir mdPath of
-        Nothing -> error $ "Internal error : Bad file path: " ++ mdPath
+        Nothing -> error $ "Internal error - Bad file path: " ++ mdPath
         Just path -> rootDir </> "build" </> path
 
   let res = commonmarkWith (defaultSyntaxSpec <> gfmExtensions) mdPath body :: (Identity (Either ParseError (Html ())))
@@ -153,41 +150,48 @@ buildProject :: FilePath -> IO ()
 buildProject rootDir = do
   let sourceDir = rootDir </> "src"
       contentDir = sourceDir </> "content"
+      buildDir = rootDir </> "build"
 
-  -- First we prepare the metadata of all the files so that
-  -- it can be made available to the the mustache template
+  -- First, we prepare the global object containing metadata of all the
+  -- files so that it can be made available to the the mustache template
   mdFilePaths <- getMdFilesRecursive contentDir
   postsMeta <- getMetaDataOfPosts mdFilePaths
 
   -- 1. Convert all .md files to corresponding .html files
-  let convert filePath = when (isExtensionOf ".md" filePath) $ do
-        convertFile postsMeta rootDir filePath
-  for_ mdFilePaths convert
+  mapM_ (convertFile postsMeta rootDir) mdFilePaths
 
   -- 2. Copy over the assets and css
-  let buildDir = rootDir </> "build"
-      copyToBuildDir filePath = do
+
+  -- copy the file present at `filePath` to its corresponding destination path
+  -- inside the build directory.
+  -- "/home/project/src/assets/foo/bar.css" -> "/home/project/build/assets/foo/bar.css"
+  let copyToBuildDir filePath = do
         fileExists <- doesFileExist filePath
         when fileExists $ do
-          case Data.List.stripPrefix sourceDir filePath of
-            Nothing -> error "an unknown error occured, please file a bug report."
-            Just path ->
+          -- Convert an absolute path to a path relative to the `content` directory
+          -- /home/injuly/project/src/content/foo/bar.css -> foo/bar.css
+          let relativePath = stripPrefix sourceDir filePath
+          case relativePath of
+            Nothing -> error "An unknown error occured, please file a bug report."
+            Just path -> do
+              -- `path` begins with a `/` so we can't use `</>` here.
               let dstPath = buildDir ++ path
                   dstDir = takeDirectory dstPath
-               in do
-                    createDirectoryIfMissing True dstDir
-                    copyFile filePath dstPath
+              createDirectoryIfMissing True dstDir
+              copyFile filePath dstPath
 
-      copyAllToBuildDir dirName = do
+      -- recursively copy all files in `dirName` to their corresponding places
+      -- in the build directory
+      copyContentsToBuildDir dirName = do
         let path = sourceDir </> dirName
         isDir <- doesDirectoryExist path
         isFile <- doesFileExist path
         when (isDir || isFile) $ do
           withFilesInDir copyToBuildDir path
 
-  copyAllToBuildDir "css"
-  copyAllToBuildDir "assets"
-  copyAllToBuildDir "static"
+  copyContentsToBuildDir "css"
+  copyContentsToBuildDir "assets"
+  copyContentsToBuildDir "static"
 
   -- copy over everything in the `copy-over` directory
   let copyDirPath = sourceDir </> "copy-over"
