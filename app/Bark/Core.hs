@@ -5,15 +5,16 @@ module Bark.Core
 where
 
 import Bark.FrontMatter (parseString)
-import Bark.Internal.IOUtil (withFilesInDir)
+import Bark.Internal.IOUtil (Result, tryReadFileT, withFilesInDir)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Monad (when)
-import Data.Functor.Identity (Identity (runIdentity))
+import Data.Functor.Identity (Identity, runIdentity)
 import Data.HashMap.Strict as HashMap (fromList, (!))
 import Data.List (stripPrefix)
+import Data.Text (Text)
 import qualified Data.Text as T (pack, unpack)
-import qualified Data.Text.IO as TIO (readFile, writeFile)
+import qualified Data.Text.IO as TIO (writeFile)
 import qualified Data.Text.Lazy as TL
 import qualified Data.Vector as Vec
 import System.Directory
@@ -35,6 +36,8 @@ import System.FilePath.Posix
   )
 import Text.Mustache as Mustache (Template (..), compileTemplate, substitute)
 import Text.Mustache.Types (Value (..))
+
+type ErrorMsg = String
 
 initProject :: FilePath -> IO ()
 initProject rootDir = do
@@ -61,22 +64,26 @@ readMetaData path = do
     Left errorMsg -> error $ "Error while reading " ++ path ++ "\n" ++ errorMsg
     Right value -> return value
 
-readTemplate :: FilePath -> FilePath -> Value -> IO Template
-readTemplate baseDir path (Object metadata) = do
-  let templateName = case metadata ! T.pack "template" of
-        String tName -> tName
-        _ -> error "template name must be a string"
-      templatePath = baseDir </> "template" </> T.unpack templateName ++ ".mustache"
+loadTemplateFrompath :: FilePath -> IO (Result Template)
+loadTemplateFrompath templatePath = do
+  templateContent <- tryReadFileT templatePath
+  return $ templateContent >>= compileBarkTemplate templatePath
 
-  templateExists <- doesFileExist templatePath
-  if not templateExists
-    then error $ "template not found: " ++ templatePath
-    else do
-      templateContent <- TIO.readFile templatePath
-      case compileTemplate templatePath templateContent of
-        Left err -> error $ show err
-        Right template -> return template
-readTemplate _ _ _ = error "Post metadata must be an object"
+compileBarkTemplate :: FilePath -> Text -> Result Mustache.Template
+compileBarkTemplate path body = case Mustache.compileTemplate path body of
+  Left err -> Left $ show err
+  Right template -> Right template
+
+readTemplate :: FilePath -> Value -> IO (Result Template)
+readTemplate rootDir (Object metadata) = do
+  -- name of the template specified in the metadata
+  let templateName_v = metadata ! T.pack "template"
+  case templateName_v of
+    String templateName ->
+      let templatePath = rootDir </> "template" </> T.unpack templateName ++ ".mustache"
+       in loadTemplateFrompath templatePath
+    other -> return $ Left $ "Template name not a string (" ++ show other ++ ")"
+readTemplate _ _ = return $ Left "Post metadata must be an object"
 
 -- | Given the project's root directory (`rootDir`) and the absolute path of a
 -- | markdown file (`mdPath`), returns a string representing the URL slug.
@@ -96,24 +103,37 @@ mdPathToRelativeURL rootDir mdPath =
           then dropExtension path </> "index.html"
           else replaceExtension path ".html"
 
+-- | Convert the markdown content passed as argument to HTML.
+mdToHTML :: FilePath -> Text -> Result TL.Text
+mdToHTML path contents =
+  let res = commonmarkWith (defaultSyntaxSpec <> gfmExtensions) path contents :: (Identity (Either ParseError (Html ())))
+   in case runIdentity res of
+        (Left err) -> Left $ show err
+        (Right html) -> Right $ renderHtml html
+
+mdFileToHTML :: FilePath -> IO (Result TL.Text)
+mdFileToHTML path = do
+  body <- tryReadFileT path
+  return $
+    either (const $ Left ("Could not read file: " ++ path)) (mdToHTML path) body
+
 -- | Converts a markdown file to its corresponding HTML
 -- | document, and then writes it to the appropriate location
 -- | in the filesystem
 convertFile :: Value -> FilePath -> FilePath -> IO ()
 convertFile allPostsMeta rootDir mdPath = do
   metaData <- readMetaData mdPath
-  body <- TIO.readFile mdPath
 
   let targetPath = case mdPathToRelativeURL rootDir mdPath of
         Nothing -> error $ "Internal error - Bad file path: " ++ mdPath
         Just path -> rootDir </> "build" </> path
 
-  let res = commonmarkWith (defaultSyntaxSpec <> gfmExtensions) mdPath body :: (Identity (Either ParseError (Html ())))
-      htmlContent = case runIdentity res of
-        (Left err) -> error $ show err
-        (Right html) -> renderHtml html
+  errorOrHtml <- mdFileToHTML mdPath
 
-  let postData =
+  let htmlContent = case errorOrHtml of
+        Left err -> error err
+        Right html -> html
+      postData =
         HashMap.fromList
           [ ("content", String $ TL.toStrict htmlContent),
             ("meta", metaData),
@@ -121,10 +141,10 @@ convertFile allPostsMeta rootDir mdPath = do
           ]
 
   createDirectoryIfMissing True $ dropFileName targetPath
-  template <- readTemplate rootDir mdPath metaData
-
-  let output = substitute template postData
-  TIO.writeFile targetPath output
+  template <- readTemplate rootDir metaData
+  case template of
+    Left err -> error err
+    Right tem -> TIO.writeFile targetPath $ substitute tem postData
 
 -- | Returns a list containing the paths to all markdown files in a directory, and its subdirectories
 getMdFilesRecursive :: FilePath -> IO [FilePath]
@@ -150,7 +170,7 @@ buildProject :: FilePath -> IO ()
 buildProject rootDir = do
   let sourceDir = rootDir </> "src"
       contentDir = sourceDir </> "content"
-      buildDir = rootDir </> "build"
+      outDir = rootDir </> "build"
 
   -- First, we prepare the global object containing metadata of all the
   -- files so that it can be made available to the the mustache template
@@ -175,7 +195,7 @@ buildProject rootDir = do
             Nothing -> error "An unknown error occured, please file a bug report."
             Just path -> do
               -- `path` begins with a `/` so we can't use `</>` here.
-              let dstPath = buildDir ++ path
+              let dstPath = outDir ++ path
                   dstDir = takeDirectory dstPath
               createDirectoryIfMissing True dstDir
               copyFile filePath dstPath
@@ -194,7 +214,7 @@ buildProject rootDir = do
   copyContentsToBuildDir "static"
 
   -- copy over everything in the `copy-over` directory
-  let copyDirPath = sourceDir </> "copy-over"
+  let copyDirPath = sourceDir </> "copy"
   isDir <- doesDirectoryExist copyDirPath
 
   when isDir $ do
@@ -202,7 +222,7 @@ buildProject rootDir = do
           -- srcPath = path of the file to copy relative to `copy` directory.
           -- dstPath = absolute path of the file to copy
           let srcPath = stripPrefix (copyDirPath ++ "/") path
-              dstPath = fmap (buildDir </>) srcPath
+              dstPath = fmap (outDir </>) srcPath
           case (srcPath, dstPath) of
             (Just src, Just dst) -> do
               createDirectoryIfMissing True $ dropFileName dst

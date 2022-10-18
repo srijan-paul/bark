@@ -1,11 +1,16 @@
 module Bark.Internal.IOUtil
   ( tryReadFile,
+    tryReadFileT,
     tryReadFileTL,
     withFilesInDir,
+    ErrMsg,
+    Result,
   )
 where
 
 import Control.Monad (when)
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TLIO
 import System.Directory
@@ -36,6 +41,11 @@ tryReadFileTL = tryReadFileWith TLIO.readFile
 -- | If the file does not exist, return an error message instead.
 tryReadFile :: FilePath -> IO (Result String)
 tryReadFile = tryReadFileWith readFile
+
+-- | Read a file from the filesystem and return it's contents as a String.
+-- | If the file does not exist, return an error message instead.
+tryReadFileT :: FilePath -> IO (Result T.Text)
+tryReadFileT = tryReadFileWith TIO.readFile
 
 -- | Recursively iterate over all files in a directory and
 -- | call the provided function on every file path
