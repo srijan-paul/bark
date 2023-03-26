@@ -60,7 +60,7 @@ Now your directory should have this structure:
 
 To add a new post, you'll have to create two new files in the `content` directory.
 
-```sh
+```shell
 $ touch src/content/post.md src/content/post.meta
 ```
 
@@ -70,7 +70,7 @@ The metadata is stored in a JSON-like format.
 
 Here's an example of what you could write into `post.md`:
 
-```md
+```markdown
 # Hello, world!
 
 This is my first post
@@ -78,7 +78,7 @@ This is my first post
 
 And the corresponding metadata in a `post.meta` file:
 
-```js
+```javascript
 {
     date: "17th December 2021"
     tags: ["post" "blog"]

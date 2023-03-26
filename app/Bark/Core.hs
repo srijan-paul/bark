@@ -6,15 +6,18 @@ where
 
 import Bark.FrontMatter (parseString)
 import Bark.Internal.IOUtil (Result, tryReadFileT, withFilesInDir)
+import Bark.Preprocess (applyTransformers, highLightSnippets)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
+import Control.Arrow (ArrowChoice (left))
 import Control.Monad (when)
 import Data.Functor.Identity (Identity, runIdentity)
-import Data.HashMap.Strict as HashMap (fromList, (!))
+import Data.HashMap.Strict as HashMap ((!))
 import Data.List (stripPrefix)
+import Data.Maybe (fromMaybe)
 import Data.Text (Text)
-import qualified Data.Text as T (pack, unpack)
-import qualified Data.Text.IO as TIO (writeFile)
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Data.Vector as Vec
 import System.Directory
@@ -34,7 +37,7 @@ import System.FilePath.Posix
     takeDirectory,
     (</>),
   )
-import Text.Mustache as Mustache (Template (..), compileTemplate, substitute)
+import qualified Text.Mustache as M
 import Text.Mustache.Types (Value (..))
 
 type ErrorMsg = String
@@ -64,17 +67,16 @@ readMetaData path = do
     Left errorMsg -> error $ "Error while reading " ++ path ++ "\n" ++ errorMsg
     Right value -> return value
 
-loadTemplateFrompath :: FilePath -> IO (Result Template)
+loadTemplateFrompath :: FilePath -> IO (Result M.Template)
 loadTemplateFrompath templatePath = do
   templateContent <- tryReadFileT templatePath
   return $ templateContent >>= compileBarkTemplate templatePath
 
-compileBarkTemplate :: FilePath -> Text -> Result Mustache.Template
-compileBarkTemplate path body = case Mustache.compileTemplate path body of
-  Left err -> Left $ show err
-  Right template -> Right template
+compileBarkTemplate :: FilePath -> Text -> Result M.Template
+compileBarkTemplate templatePath template =
+  left show $ M.compileTemplate templatePath template
 
-readTemplate :: FilePath -> Value -> IO (Result Template)
+readTemplate :: FilePath -> Value -> IO (Result M.Template)
 readTemplate rootDir (Object metadata) = do
   -- name of the template specified in the metadata
   let templateName_v = metadata ! T.pack "template"
@@ -111,6 +113,8 @@ mdToHTML path contents =
         (Left err) -> Left $ show err
         (Right html) -> Right $ renderHtml html
 
+-- | Convert the markdown file present at [path] to an HTML string,
+-- | return the HTML under an IO Monad.
 mdFileToHTML :: FilePath -> IO (Result TL.Text)
 mdFileToHTML path = do
   body <- tryReadFileT path
@@ -134,7 +138,7 @@ convertFile allPostsMeta rootDir mdPath = do
         Left err -> error err
         Right html -> html
       postData =
-        HashMap.fromList
+        listToMetaObject
           [ ("content", String $ TL.toStrict htmlContent),
             ("meta", metaData),
             ("posts", allPostsMeta)
@@ -144,13 +148,18 @@ convertFile allPostsMeta rootDir mdPath = do
   template <- readTemplate rootDir metaData
   case template of
     Left err -> error err
-    Right tem -> TIO.writeFile targetPath $ substitute tem postData
+    Right tem -> TIO.writeFile targetPath $ applyTransformers [highLightSnippets] $ M.substitute tem postData
 
 -- | Returns a list containing the paths to all markdown files in a directory, and its subdirectories
 getMdFilesRecursive :: FilePath -> IO [FilePath]
 getMdFilesRecursive dirPath = do
   allFiles <- getFilesRecursive dirPath
   return $ filter (isExtensionOf ".md") allFiles
+
+listToMetaObject :: [(String, Value)] -> Value
+listToMetaObject = M.object . map toMetaEntry
+  where
+    toMetaEntry (a, b) = (T.pack a, b)
 
 -- | Given a list of paths to `.md` files, return the corresponding metadata, in the same order.
 -- | It is assumed that a file at path "foo/bar/baz.md", will have its metadata at "foo/bar/baz.meta".
@@ -163,8 +172,8 @@ getMetaDataOfPosts mdPaths = do
     readMetaDataOf mdPath = do
       metaData <- readMetaData mdPath
       let (postName, meta) = (String $ T.pack $ takeBaseName mdPath, metaData)
-      return
-        (Object $ HashMap.fromList [(T.pack "name", postName), (T.pack "data", meta)])
+      return $
+        listToMetaObject [("name", postName), ("data", meta)]
 
 buildProject :: FilePath -> IO ()
 buildProject rootDir = do
@@ -181,7 +190,6 @@ buildProject rootDir = do
   mapM_ (convertFile postsMeta rootDir) mdFilePaths
 
   -- 2. Copy over the assets and css
-
   -- copy the file present at `filePath` to its corresponding destination path
   -- inside the build directory.
   -- "/home/project/src/assets/foo/bar.css" -> "/home/project/build/assets/foo/bar.css"
@@ -215,18 +223,16 @@ buildProject rootDir = do
 
   -- copy over everything in the `copy-over` directory
   let copyDirPath = sourceDir </> "copy"
-  isDir <- doesDirectoryExist copyDirPath
+  copyDirExists <- doesDirectoryExist copyDirPath
 
-  when isDir $ do
+  when copyDirExists $ do
     let copyToBuildRoot path = do
           -- srcPath = path of the file to copy relative to `copy` directory.
           -- dstPath = absolute path of the file to copy
           let srcPath = stripPrefix (copyDirPath ++ "/") path
-              dstPath = fmap (outDir </>) srcPath
-          case (srcPath, dstPath) of
-            (Just src, Just dst) -> do
-              createDirectoryIfMissing True $ dropFileName dst
-              copyFile path dst
-            _ -> return ()
+              dstPath = (outDir </>) <$> srcPath
+          copyFile path <$> dstPath
+          createDirectoryIfMissing True . dropFileName <$> dstPath
     filesToCopyOver <- getFilesRecursive copyDirPath
-    mapM_ copyToBuildRoot filesToCopyOver
+    let _ = copyToBuildRoot <$> filesToCopyOver
+    return ()
