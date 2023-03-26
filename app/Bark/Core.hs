@@ -6,7 +6,7 @@ where
 
 import Bark.FrontMatter (parseString)
 import Bark.Internal.IOUtil (Result, tryReadFileT, withFilesInDir)
-import Bark.Preprocess (applyTransformers, highLightSnippets)
+import Bark.Transformers (applyTransformers, highLightSnippets)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Arrow (ArrowChoice (left))
@@ -14,7 +14,6 @@ import Control.Monad (when)
 import Data.Functor.Identity (Identity, runIdentity)
 import Data.HashMap.Strict as HashMap ((!))
 import Data.List (stripPrefix)
-import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO

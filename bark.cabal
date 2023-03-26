@@ -57,7 +57,7 @@ library
     exposed-modules:
         Bark.Core,
         Bark.FrontMatter,
-        Bark.Preprocess
+        Bark.Transformers
 
 
 executable bark
@@ -67,7 +67,7 @@ executable bark
     other-modules:
         Bark.Core,
         Bark.FrontMatter,
-        Bark.Preprocess
+        Bark.Transformers
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:

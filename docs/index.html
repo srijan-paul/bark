@@ -20,60 +20,60 @@
 <p>If you have any experience with Hugo, 11ty or Jekyll then using Bark should be a cakewalk.</p>
 <h2 id="installation">Installation</h2>
 <p>Since bark is in it&#39;s experimental stages, the only way to get it currently is to
-compile it from source. The source tree can be found <a href="https://github.com/srijan-paul/bark">here</a> on GitHub. Just clone the repo and run the <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>build.sh</span></code></pre></div></code> script to compile.
-When finished, you should see an executable in <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>dist/bark</span></code></pre></div></code>.</p>
+compile it from source. The source tree can be found <a href="https://github.com/srijan-paul/bark">here</a> on GitHub. Just clone the repo and run the <code>build.sh</code> script to compile.
+When finished, you should see an executable in <code>dist/bark</code>.</p>
 <p>Once it&#39;s more stable, bark will be released on hackage.</p>
 <h2 id="usage">Usage</h2>
 <p>Using bark is as simple as it gets.</p>
 <h3 id="one-time-setup">One time setup</h3>
 <p>You&#39;ll need <a href="https://www.haskell.org/cabal/">cabal</a> and <a href="https://www.haskell.org/ghc/">ghc</a> installed to
 install bark. Once you&#39;ve made sure you have them installed, clone the GitHub repository and run this command:</p>
-<pre><code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> cabal install exe:bark <span class="at">--overwrite-policy</span><span class="op">=</span>always</span></code></pre></div></code></pre>
+<code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> cabal install exe:bark <span class="at">--overwrite-policy</span><span class="op">=</span>always</span></code></pre></div></code></pre>
 <p>Let&#39;s do a quick sanity check to ensure all&#39;s good.
-If you get something similar to what&#39;s shown below when you enter <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>bark</span></code></pre></div></code> into the command line, then we&#39;re all set!</p>
-<pre><code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> bark</span>
+If you get something similar to what&#39;s shown below when you enter <code>bark</code> into the command line, then we&#39;re all set!</p>
+<code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> bark</span>
 <span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="ex">Bark</span> v0.1.0. commands available:</span>
 <span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="ex">build:</span> build the current project</span>
 <span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="ex">watch:</span> watch the directory and build whenever changes are detected.</span></code></pre></div></code></pre>
 <h3 id="creating-projects">Creating projects</h3>
-<p>To create a new project, create an empty directory and initialize it with <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>bark init</span></code></pre></div></code>.</p>
-<pre><code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> mkdir project</span>
+<p>To create a new project, create an empty directory and initialize it with <code>bark init</code>.</p>
+<code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> mkdir project</span>
 <span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> cd project</span>
 <span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> bark init</span></code></pre></div></code></pre>
 <p>Now your directory should have this structure:</p>
-<pre><code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="bu">.</span></span>
+<code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="bu">.</span></span>
 <span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="ex">├──</span> src</span>
 <span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   ├── assets</span>
 <span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   ├── content</span>
 <span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   └── public</span>
 <span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a><span class="ex">└──</span> template</span></code></pre></div></code></pre>
 <h3 id="adding-new-posts">Adding new posts</h3>
-<p>To add a new post, you&#39;ll have to create two new files in the <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>content</span></code></pre></div></code> directory.</p>
-<pre><code class="language-shell"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>$ touch src/content/post.md src/content/post.meta</span></code></pre></div></code></pre>
-<p>The <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>post.md</span></code></pre></div></code> file contains the markdown content of our page.
-The <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>post.meta</span></code></pre></div></code> file contains metadata about our post.
+<p>To add a new post, you&#39;ll have to create two new files in the <code>content</code> directory.</p>
+<code class="language-shell"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>$ touch src/content/post.md src/content/post.meta</span></code></pre></div></code></pre>
+<p>The <code>post.md</code> file contains the markdown content of our page.
+The <code>post.meta</code> file contains metadata about our post.
 The metadata is stored in a JSON-like format.</p>
-<p>Here&#39;s an example of what you could write into <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>post.md</span></code></pre></div></code>:</p>
-<pre><code class="language-markdown"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Hello, world!</span></span>
+<p>Here&#39;s an example of what you could write into <code>post.md</code>:</p>
+<code class="language-markdown"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Hello, world!</span></span>
 <span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>This is my first post</span></code></pre></div></code></pre>
-<p>And the corresponding metadata in a <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>post.meta</span></code></pre></div></code> file:</p>
-<pre><code class="language-javascript"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>{</span>
+<p>And the corresponding metadata in a <code>post.meta</code> file:</p>
+<code class="language-javascript"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>{</span>
 <span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">date</span><span class="op">:</span> <span class="st">&quot;17th December 2021&quot;</span></span>
 <span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">tags</span><span class="op">:</span> [<span class="st">&quot;post&quot;</span> <span class="st">&quot;blog&quot;</span>]</span>
 <span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">template</span><span class="op">:</span> <span class="st">&quot;post&quot;</span></span>
 <span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">title</span><span class="op">:</span> <span class="st">&quot;My first post!&quot;</span></span>
 <span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div></code></pre>
-<p>The <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>template</span></code></pre></div></code> key is special, and <strong>must</strong> be present in a metadata file.
+<p>The <code>template</code> key is special, and <strong>must</strong> be present in a metadata file.
 It represents which HTML template to use when rendering the post.</p>
 <h3 id="using-templates">Using templates</h3>
 <p>A bark template is written in the <a href="https://mustache.github.io/">mustache</a> templating language.
 If you&#39;ve used HTML, then you already know most of what you need to know.
 In the mustache template, there are some prexisting variables.</p>
-<p>The <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>content</span></code></pre></div></code> is a string containing the markdown content of the page, now converted to HTML.
-The other global variables correspond to the keys listed in a <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>.meta</span></code></pre></div></code> file.</p>
-<p>Here is an example template, <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>post.mustache</span></code></pre></div></code>:</p>
-<pre><code class="language-html"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="kw">&lt;html&gt;</span></span>
+<p>The <code>content</code> is a string containing the markdown content of the page, now converted to HTML.
+The other global variables correspond to the keys listed in a <code>.meta</code> file.</p>
+<p>Here is an example template, <code>post.mustache</code>:</p>
+<code class="language-html"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="kw">&lt;html&gt;</span></span>
 <span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">&lt;head&gt;</span></span>
 <span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>    <span class="co">&lt;!-- This will be replaced with the `title` key in the `.meta` file.  --&gt;</span></span>
 <span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">&lt;title&gt;</span>{{ title }}<span class="kw">&lt;/title&gt;</span></span>
@@ -90,11 +90,11 @@ The other global variables correspond to the keys listed in a <code><div class="
 <span id="15"><a href="#15" aria-hidden="true" tabindex="-1"></a><span class="kw">&lt;/html&gt;</span></span></code></pre></div></code></pre>
 <h3 id="building-your-project">Building your project</h3>
 <p>This is where everything comes together nicely.</p>
-<pre><code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> bark build</span></code></pre></div></code></pre>
-<p>Once you do this, you should see a <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>build</span></code></pre></div></code> directory pop up in the project root.
+<code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> bark build</span></code></pre></div></code></pre>
+<p>Once you do this, you should see a <code>build</code> directory pop up in the project root.
 This directory now contains the HTML output of all our files.</p>
 <p>Running the build command again and again is tedious.
-You could make bark watch over the directory for changes using <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>bark watch</span></code></pre></div></code>.</p>
+You could make bark watch over the directory for changes using <code>bark watch</code>.</p>
 <h2 id="sample-project">Sample project.</h2>
 <p>Want a sample project as reference? How about this one?</p>
 <p>The page you&#39;re reading right now has been made with bark.
@@ -102,9 +102,9 @@ You can find the source <a href="https://github.com/srijan-paul/bark/tree/main/s
 <h2 id="faq">FAQ</h2>
 <p><strong>Q. How can I get syntax highlighting?</strong></p>
 <p>Same way I did on this page.
-You could use a syntax highlighting library like <a href="https://highlightjs.org/">highlight.js</a> and initialize it in a <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>&lt;script&gt;</span></code></pre></div></code> tag in your template to embed it. It only takes 5 lines of code!</p>
+You could use a syntax highlighting library like <a href="https://highlightjs.org/">highlight.js</a> and initialize it in a <code>&lt;script&gt;</code> tag in your template to embed it. It only takes 5 lines of code!</p>
 <p><strong>Q. How can do I get nested/grouped paths to my pages?</strong></p>
-<p>Simple! Just nest your directory structure inside <code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>content</span></code></pre></div></code> the way you want your URLs to turn out.
+<p>Simple! Just nest your directory structure inside <code>content</code> the way you want your URLs to turn out.
 The build directory structure mirrors the source.</p>
 <p><strong>Q. Does bark support images and other media content?</strong></p>
 <p><img src="assets/cookedcat.jpg" alt="cat-image"></img></p>
