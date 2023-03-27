@@ -5,7 +5,7 @@ module Bark.FrontMatter (tokenize, Token (..), parseString, parseFromTokens) whe
 import qualified Data.Bifunctor as Bifunctor
 import Data.Char (isAlphaNum, isSpace)
 import Data.HashMap.Strict (HashMap, empty, insert)
-import Data.Text as T (Text, pack)
+import qualified Data.Text as T 
 import qualified Data.Vector as Vec (fromList)
 import Text.Mustache.Types (Value (..))
 
@@ -59,9 +59,9 @@ parseList acc tokens =
         Left errMsg -> Left errMsg
     [] -> Left "Expected ']' to close list, but found end of input"
 
-type MetaMapEntry = (Text, Value)
+type MetaMapEntry = (T.Text, Value)
 
-type MetaMap = HashMap Text Value
+type MetaMap = HashMap T.Text Value
 
 parseMapEntry :: [Token] -> Either ParseError (MetaMapEntry, [Token])
 parseMapEntry [TKey key] =
