@@ -50,7 +50,7 @@ initProject rootDir = do
           "src" </> "css",
           "template",
           "src" </> "static",
-          "src" </> "copy-over"
+          "src" </> "copy"
         ]
    in mapM_ (createDirectoryIfMissing True . combine rootDir) dirNames
 
@@ -220,7 +220,7 @@ buildProject rootDir = do
   copyContentsToBuildDir "assets"
   copyContentsToBuildDir "static"
 
-  -- copy over everything in the `copy-over` directory
+  -- copy over everything in the `copy` directory
   let copyDirPath = sourceDir </> "copy"
   copyDirExists <- doesDirectoryExist copyDirPath
 
@@ -228,10 +228,12 @@ buildProject rootDir = do
     let copyToBuildRoot path = do
           -- srcPath = path of the file to copy relative to `copy` directory.
           -- dstPath = absolute path of the file to copy
-          let srcPath = stripPrefix (copyDirPath ++ "/") path
-              dstPath = (outDir </>) <$> srcPath
-          copyFile path <$> dstPath
-          createDirectoryIfMissing True . dropFileName <$> dstPath
+          let srcPath' = stripPrefix (copyDirPath ++ "/") path
+          case srcPath' of
+            Nothing -> error $ "Could not resolve copy-over path for: " <> path 
+            Just srcPath -> do
+              let dstPath  = outDir </> srcPath
+              createDirectoryIfMissing True $ dropFileName dstPath
+              copyFile path dstPath
     filesToCopyOver <- getFilesRecursive copyDirPath
-    let _ = copyToBuildRoot <$> filesToCopyOver
-    return ()
+    mapM_ copyToBuildRoot filesToCopyOver
