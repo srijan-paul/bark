@@ -99,3 +99,4 @@ parseFromTokens tokens = fst <$> parse' tokens
 
 parseString :: String -> Either ParseError Value
 parseString = parseFromTokens . tokenize
+

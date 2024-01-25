@@ -30,7 +30,13 @@ library bark-internal
         text,
         filepath,
         dir-traverse,
-        directory
+        directory,
+        either,
+        mtl,
+        frontmatter,
+        bytestring,
+        yaml,
+        aeson
     exposed-modules:
         Bark.Internal.IOUtil
 
@@ -52,13 +58,18 @@ library
         dir-traverse,
         skylighting,
         tagsoup,
-        blaze-html
+        blaze-html,
+        either,
+        mtl,
+        frontmatter,
+        bytestring,
+        yaml,
+        aeson
 
     exposed-modules:
         Bark.Core,
         Bark.FrontMatter,
-        Bark.Transformers
-
+        Bark.Transformers,
 
 executable bark
     main-is:          Main.hs
@@ -85,7 +96,13 @@ executable bark
         dir-traverse,
         skylighting,
         tagsoup,
-        blaze-html
+        blaze-html,
+        mtl,
+        frontmatter,
+        bytestring,
+        yaml,
+        pretty-simple,
+        aeson
 
     ghc-options:
         -threaded
