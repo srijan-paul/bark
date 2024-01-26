@@ -1,3 +1,9 @@
+---
+date: "17th Dec 2021"
+template: post
+title: "Bark - SSG in Haskell"
+---
+
 # Bark
 
 Bark is a static site generator written in Haskell, targeting ease of use.

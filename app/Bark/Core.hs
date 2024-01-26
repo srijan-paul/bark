@@ -1,13 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bark.Core (getPostFromMdfile, Project (..), postToHtml, buildPost) where
+module Bark.Core (getPostFromMdfile, Project (..), postToHtml, buildPost, buildProject) where
 
 import Bark.FrontMatter (PostFrontMatter (..), parseFrontMatter)
-import Bark.Internal.IOUtil (ErrorMessage, tryReadFileBS, tryReadFileT)
+import Bark.Internal.IOUtil (ErrorMessage, copyDirectory, tryReadFileBS, tryReadFileT)
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Arrow (ArrowChoice (left))
-import Control.Monad.Except (ExceptT, MonadIO (liftIO), liftEither)
+import Control.Monad.Except (ExceptT, MonadIO (liftIO), liftEither, when)
 import Control.Monad.Identity (Identity (runIdentity))
 import Data.Bifunctor (Bifunctor (bimap))
 import qualified Data.Char as Char
@@ -17,8 +17,17 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
-import System.Directory (createDirectoryIfMissing)
-import System.FilePath (dropExtension, makeRelative, replaceExtension, takeBaseName, takeDirectory, (</>))
+import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
+import System.Directory.Recursive (getFilesRecursive)
+import System.FilePath
+  ( dropExtension,
+    makeRelative,
+    replaceExtension,
+    takeBaseName,
+    takeDirectory,
+    takeExtension,
+    (</>),
+  )
 import qualified Text.Mustache as Mustache
 import qualified Text.Mustache.Types as Mustache
 
@@ -121,3 +130,22 @@ buildPost project post = do
       outPath = postDstPath post
   liftIO $ createDirectoryIfMissing True $ takeDirectory outPath
   liftIO $ TIO.writeFile outPath output
+
+-- | Build a bark project
+buildProject :: Project -> ExceptT ErrorMessage IO ()
+buildProject project = do
+  files <- liftIO $ getFilesRecursive src
+  liftIO $ createDirectoryIfMissing True (projectOutDir project)
+  let markdownFiles = filter ((`elem` [".markdown", ".md"]) . takeExtension) files
+  posts <- mapM (getPostFromMdfile project) markdownFiles
+  mapM_ (buildPost project) posts
+
+  liftIO $ do
+    hasAssets <- doesDirectoryExist assetsDir
+    when hasAssets $ copyDirectory assetsDir (outDir </> makeRelative rootDir assetsDir)
+  where
+    rootDir = projectRoot project
+    src = projectSourceDir project
+    outDir = projectOutDir project
+    assetsDir = projectAssetsDir project
+    template = projectTemplateDir project

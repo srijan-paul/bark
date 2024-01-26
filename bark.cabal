@@ -65,11 +65,14 @@ library
         bytestring,
         yaml,
         aeson
-
+    
+    other-modules:
+        Bark.Internal.IOUtil
     exposed-modules:
         Bark.Core,
         Bark.FrontMatter,
-        Bark.Transformers,
+        Bark.Transformers
+
 
 executable bark
     main-is:          Main.hs
@@ -78,7 +81,8 @@ executable bark
     other-modules:
         Bark.Core,
         Bark.FrontMatter,
-        Bark.Transformers
+        Bark.Transformers,
+        Bark.Internal.IOUtil
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
@@ -102,6 +106,8 @@ executable bark
         bytestring,
         yaml,
         pretty-simple,
+        bark:bark-internal,
+        bark:bark,
         aeson
 
     ghc-options:

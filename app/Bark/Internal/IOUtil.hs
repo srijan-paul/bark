@@ -3,25 +3,28 @@ module Bark.Internal.IOUtil
     tryReadFileT,
     tryReadFileTL,
     tryReadFileBS,
-    withFilesInDir,
+    listFilesRecursive,
     ErrorMessage,
     ResultT,
+    copyDirectory,
   )
 where
 
-import Control.Monad (when)
-import Control.Monad.Except (ExceptT, lift, throwError)
+import Control.Monad.Except (ExceptT, filterM, forM_, lift, throwError)
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TLIO
 import System.Directory
-  ( doesDirectoryExist,
+  ( copyFile,
+    createDirectoryIfMissing,
+    doesDirectoryExist,
     doesFileExist,
     listDirectory,
   )
-import System.FilePath (combine)
+import System.Directory.Recursive (getFilesRecursive)
+import System.FilePath (makeRelative, takeDirectory, (</>))
 
 type ErrorMessage = String
 
@@ -53,20 +56,33 @@ tryReadFileT = tryReadFileWith TIO.readFile
 tryReadFileBS :: FilePath -> ResultT IO BS.ByteString
 tryReadFileBS = tryReadFileWith BS.readFile
 
--- | Recursively iterate over all files in a directory and
--- | call the provided function on every file path
-withFilesInDir :: (FilePath -> IO ()) -> FilePath -> IO ()
-withFilesInDir _ "" = return ()
-withFilesInDir callback path = do
-  isFile <- doesFileExist path
-  isDirectory <- doesDirectoryExist path
-
-  when isFile (callback path) -- if a file, then call callback
-  when isDirectory recurse -- if a directory, then search inside it
+-- | Recursively list all files in a directory
+listFilesRecursive :: FilePath -> IO [FilePath]
+listFilesRecursive = goDirectory []
   where
-    recurse = do
-      -- `path` is itself a directory, and needs to be recursed over
-      contents <- listDirectory path
-      mapM_
-        (withFilesInDir callback . combine path)
-        contents
+    go :: [FilePath] -> FilePath -> IO [FilePath]
+    go acc fileOrDir = do
+      isFile <- doesFileExist fileOrDir
+      if isFile
+        then return (fileOrDir : acc)
+        else goDirectory acc fileOrDir
+
+    goDirectory :: [FilePath] -> FilePath -> IO [FilePath]
+    goDirectory acc dir = do
+      isDir <- doesDirectoryExist dir
+      if isDir
+        then do
+          files' <- listDirectory dir
+          let files = map (dir </>) files'
+          innerFiles <- concat <$> mapM (go []) files
+          return $ acc ++ innerFiles
+        else return acc
+
+copyDirectory :: FilePath -> FilePath -> IO ()
+copyDirectory srcDir dstDir = do
+  dirsAndFiles <- getFilesRecursive srcDir
+  files <- filterM doesFileExist dirsAndFiles
+  forM_ files $ \filePath -> do
+    let dstPath = dstDir </> makeRelative srcDir filePath
+    createDirectoryIfMissing True (takeDirectory dstPath)
+    copyFile filePath dstPath

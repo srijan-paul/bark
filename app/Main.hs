@@ -1,10 +1,9 @@
 module Main where
 
-import Bark.Core (Project (..), buildPost, getPostFromMdfile, postToHtml)
+import Bark.Core (Project (..), buildProject)
 import Control.Monad.Except (runExceptT)
 import System.Directory (makeAbsolute)
 import System.FilePath ((</>))
-import Text.Pretty.Simple (pPrint)
 
 main :: IO ()
 main = do
@@ -17,8 +16,6 @@ main = do
             projectAssetsDir = projectPath </> "assets",
             projectTemplateDir = projectPath </> "template"
           }
-  runExceptT $ do
-    post <- getPostFromMdfile project (projectSourceDir project </> "index.md")
-    buildPost project post
-
+  result <- runExceptT $ buildProject project
+  print result
   return ()
