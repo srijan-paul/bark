@@ -17,5 +17,4 @@ main = do
             projectTemplateDir = projectPath </> "template"
           }
   result <- runExceptT $ buildProject project
-  print result
   return ()

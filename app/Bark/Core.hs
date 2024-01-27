@@ -1,6 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bark.Core (getPostFromMdfile, Project (..), postToHtml, buildPost, buildProject) where
+module Bark.Core
+  ( getPostFromMdfile,
+    Project (..),
+    Post (..),
+    postToHtml,
+    buildPost,
+    buildProject,
+  )
+where
 
 import Bark.FrontMatter (PostFrontMatter (..), parseFrontMatter)
 import Bark.Internal.IOUtil (ErrorMessage, copyDirectory, tryReadFileBS, tryReadFileT)
@@ -17,6 +25,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
+import qualified Data.Vector as Vector
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
 import System.Directory.Recursive (getFilesRecursive)
 import System.FilePath
@@ -40,15 +49,32 @@ data Project = Project
     projectAssetsDir :: FilePath,
     projectTemplateDir :: FilePath
   }
+  deriving (Show)
 
 -- | Represents a markdown file with metadata,
 -- that will later be rendered as HTML.
 data Post = Post
-  { postPath :: FilePath,
+  { -- | Absolute path to the markdown file that contains the source for this post.
+    postPath :: FilePath,
+    -- | Absolute path where the post will be rendered.
     postDstPath :: FilePath,
+    -- | The YAML frontmatter found at the top of every markdown page.
+    -- There is one mandatory field called "template", and the rest is upto the user.
     postFrontMatter :: PostFrontMatter,
+    -- | The markdown content of the post, frontmatter included.
     postContent :: T.Text,
-    postUrl :: FilePath
+    -- | The URL where the post will be hosted, relative to the root.
+    --  E.g: "my-website/src/blog/hello-world.md" -> "blog/hello-world/index.html"
+    postUrl :: FilePath,
+    -- | Any additional fields needed by the post's template.
+    -- During building, the post has three data fields that it can access:
+    -- - **content**: the markdown content converted to HTML.
+    -- - **meta**: the metadata from the frontmatter.
+    -- - **posts**: an array of all posts in the project.
+    --
+    -- In addition to these, posts can be modified to have their own data fields.
+    -- For example, a **website_url** field that stores the URL where the site containing all pages is hosted.
+    postOtherData :: [(T.Text, Mustache.Value)]
   }
   deriving (Show)
 
@@ -70,7 +96,8 @@ getPostFromMdfile project filePath = do
         postDstPath = dstPath,
         postFrontMatter = frontmatter,
         postContent = T.decodeUtf8 content,
-        postUrl = url
+        postUrl = url,
+        postOtherData = []
       }
 
 md2Html :: FilePath -> T.Text -> Either ErrorMessage T.Text
@@ -122,30 +149,43 @@ buildPost project post = do
   let metadata = fmMetaData (postFrontMatter post)
       postData =
         Mustache.Object $
-          HM.fromList
+          HM.fromList $
             [ ("content", Mustache.String postHtml),
-              ("metadata", metadata)
+              ("meta", Mustache.Object metadata)
             ]
+              ++ postOtherData post
       output = Mustache.substitute template postData
       outPath = postDstPath post
   liftIO $ createDirectoryIfMissing True $ takeDirectory outPath
   liftIO $ TIO.writeFile outPath output
 
+-- | Get a list of all posts in the project.
+getPosts :: Project -> ExceptT ErrorMessage IO [Post]
+getPosts project = do
+  files <- liftIO $ getFilesRecursive (projectSourceDir project)
+  liftIO $ createDirectoryIfMissing True (projectOutDir project)
+  let markdownFiles = filter ((`elem` [".markdown", ".md"]) . takeExtension) files
+  mapM (getPostFromMdfile project) markdownFiles
+
 -- | Build a bark project
 buildProject :: Project -> ExceptT ErrorMessage IO ()
 buildProject project = do
-  files <- liftIO $ getFilesRecursive src
-  liftIO $ createDirectoryIfMissing True (projectOutDir project)
-  let markdownFiles = filter ((`elem` [".markdown", ".md"]) . takeExtension) files
-  posts <- mapM (getPostFromMdfile project) markdownFiles
-  mapM_ (buildPost project) posts
+  posts' <- getPosts project
+  -- Every post has an additional data field called `posts`.
+  -- It is an array of all posts in the project.
+  let allPostsMeta =
+        Mustache.Array $
+          Vector.fromList $
+            map (Mustache.Object . fmMetaData . postFrontMatter) posts'
+      posts = map (\p -> p {postOtherData = [("posts", allPostsMeta)]}) posts'
 
+  mapM_ (buildPost project) posts
   liftIO $ do
     hasAssets <- doesDirectoryExist assetsDir
-    when hasAssets $ copyDirectory assetsDir (outDir </> makeRelative rootDir assetsDir)
+    when hasAssets $
+      copyDirectory assetsDir (outDir </> makeRelative rootDir assetsDir)
   where
     rootDir = projectRoot project
     src = projectSourceDir project
     outDir = projectOutDir project
     assetsDir = projectAssetsDir project
-    template = projectTemplateDir project
