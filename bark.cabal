@@ -21,30 +21,10 @@ extra-source-files:
     CHANGELOG.md
     README.md
 
-library bark-internal
-    hs-source-dirs: app
-    build-depends:
-        base,
-        containers,
-        mustache,
-        text,
-        filepath,
-        dir-traverse,
-        directory,
-        either,
-        mtl,
-        frontmatter,
-        bytestring,
-        yaml,
-        aeson
-    exposed-modules:
-        Bark.Internal.IOUtil
-
 library
     hs-source-dirs: app
     build-depends:
         base,
-        bark:bark-internal,
         commonmark,
         commonmark-extensions,
         text,
@@ -67,22 +47,23 @@ library
         aeson
     
     other-modules:
-        Bark.Internal.IOUtil
+        Bark.Internal.IOUtil,
     exposed-modules:
+        Bark.Types,
         Bark.Core,
         Bark.FrontMatter,
-        Bark.Transformers
-
+        Bark.Preprocessors.SyntaxHighlight
 
 executable bark
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
     other-modules:
-        Bark.Core,
+        Bark.Preprocessors.SyntaxHighlight,
+        Bark.Internal.IOUtil,
         Bark.FrontMatter,
-        Bark.Transformers,
-        Bark.Internal.IOUtil
+        Bark.Types,
+        Bark.Core
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
@@ -106,7 +87,6 @@ executable bark
         bytestring,
         yaml,
         pretty-simple,
-        bark:bark-internal,
         bark:bark,
         aeson
 
@@ -126,7 +106,6 @@ Test-Suite test-bark
     build-depends:
         base,
         bark,
-        bark:bark-internal,
         test-framework,
         test-framework-hunit,
         HUnit,

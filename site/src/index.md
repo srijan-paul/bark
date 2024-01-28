@@ -2,9 +2,12 @@
 template: post
 ---
 
-# Raaaww talent 
+# Here is a code block.
 
-this is some paragraph.
-
-## Aw oww
-xxx
+```js
+const foo = "bar";
+function twice(x) { 
+  return 2 * x
+}
+console.log(twice(foo))
+```

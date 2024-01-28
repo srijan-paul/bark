@@ -7,15 +7,17 @@ module Bark.Core
     postToHtml,
     buildPost,
     buildProject,
+    buildProjectWith,
   )
 where
 
 import Bark.FrontMatter (PostFrontMatter (..), parseFrontMatter)
 import Bark.Internal.IOUtil (ErrorMessage, copyDirectory, tryReadFileBS, tryReadFileT)
+import Bark.Types (Post (..), Preprocessor, Project (..))
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Arrow (ArrowChoice (left))
-import Control.Monad.Except (ExceptT, MonadIO (liftIO), liftEither, when)
+import Control.Monad.Except (ExceptT, MonadIO (liftIO), foldM, liftEither, when)
 import Control.Monad.Identity (Identity (runIdentity))
 import Data.Bifunctor (Bifunctor (bimap))
 import qualified Data.Char as Char
@@ -39,44 +41,6 @@ import System.FilePath
   )
 import qualified Text.Mustache as Mustache
 import qualified Text.Mustache.Types as Mustache
-
--- | Represents a Bark project.
---  Contains absolute paths to various directories.
-data Project = Project
-  { projectRoot :: FilePath,
-    projectSourceDir :: FilePath,
-    projectOutDir :: FilePath,
-    projectAssetsDir :: FilePath,
-    projectTemplateDir :: FilePath
-  }
-  deriving (Show)
-
--- | Represents a markdown file with metadata,
--- that will later be rendered as HTML.
-data Post = Post
-  { -- | Absolute path to the markdown file that contains the source for this post.
-    postPath :: FilePath,
-    -- | Absolute path where the post will be rendered.
-    postDstPath :: FilePath,
-    -- | The YAML frontmatter found at the top of every markdown page.
-    -- There is one mandatory field called "template", and the rest is upto the user.
-    postFrontMatter :: PostFrontMatter,
-    -- | The markdown content of the post, frontmatter included.
-    postContent :: T.Text,
-    -- | The URL where the post will be hosted, relative to the root.
-    --  E.g: "my-website/src/blog/hello-world.md" -> "blog/hello-world/index.html"
-    postUrl :: FilePath,
-    -- | Any additional fields needed by the post's template.
-    -- During building, the post has three data fields that it can access:
-    -- - **content**: the markdown content converted to HTML.
-    -- - **meta**: the metadata from the frontmatter.
-    -- - **posts**: an array of all posts in the project.
-    --
-    -- In addition to these, posts can be modified to have their own data fields.
-    -- For example, a **website_url** field that stores the URL where the site containing all pages is hosted.
-    postOtherData :: [(T.Text, Mustache.Value)]
-  }
-  deriving (Show)
 
 urlFromMdPath :: Project -> FilePath -> FilePath
 urlFromMdPath Project {projectSourceDir = sourceDir} mdFilePath
@@ -167,18 +131,8 @@ getPosts project = do
   let markdownFiles = filter ((`elem` [".markdown", ".md"]) . takeExtension) files
   mapM (getPostFromMdfile project) markdownFiles
 
--- | Build a bark project
-buildProject :: Project -> ExceptT ErrorMessage IO ()
-buildProject project = do
-  posts' <- getPosts project
-  -- Every post has an additional data field called `posts`.
-  -- It is an array of all posts in the project.
-  let allPostsMeta =
-        Mustache.Array $
-          Vector.fromList $
-            map (Mustache.Object . fmMetaData . postFrontMatter) posts'
-      posts = map (\p -> p {postOtherData = [("posts", allPostsMeta)]}) posts'
-
+buildProjectImpl :: Project -> [Post] -> ExceptT ErrorMessage IO ()
+buildProjectImpl project posts = do
   mapM_ (buildPost project) posts
   liftIO $ do
     hasAssets <- doesDirectoryExist assetsDir
@@ -186,6 +140,32 @@ buildProject project = do
       copyDirectory assetsDir (outDir </> makeRelative rootDir assetsDir)
   where
     rootDir = projectRoot project
-    src = projectSourceDir project
     outDir = projectOutDir project
     assetsDir = projectAssetsDir project
+
+addPostListToMeta :: [Post] -> ExceptT ErrorMessage IO [Post]
+addPostListToMeta posts' = do
+  -- Every post has an additional data field called `posts`.
+  -- It is an array of all posts in the project.
+  let allPosts =
+        (Mustache.Array . Vector.fromList) $
+          map (Mustache.Object . fmMetaData . postFrontMatter) posts'
+      posts = map (\p -> p {postOtherData = [("posts", allPosts)]}) posts'
+  return posts
+
+-- | Build a bark project
+buildProject :: Project -> ExceptT ErrorMessage IO ()
+buildProject project = do
+  posts <- getPosts project >>= addPostListToMeta
+  buildProjectImpl project posts
+
+buildProjectWith :: [Preprocessor] -> Project -> ExceptT ErrorMessage IO ()
+buildProjectWith preprocessors project = do
+  posts <- getPosts project >>= addPostListToMeta
+  processedPosts <- mapM applyPreprocessors posts
+  buildProjectImpl project processedPosts
+  where
+    applyPreprocessors post = foldM applyPreprocessor post preprocessors
+
+    applyPreprocessor :: Post -> Preprocessor -> ExceptT ErrorMessage IO Post
+    applyPreprocessor post p = p project post
