@@ -1,8 +1,10 @@
 module Bark.Types
   ( Project (..),
     Post (..),
+    HTMLPage (..),
     PostFrontMatter (..),
     Preprocessor,
+    Postprocessor,
     ErrorMessage,
   )
 where
@@ -52,4 +54,11 @@ data Post = Post
   }
   deriving (Show)
 
+data HTMLPage = HTMLPage
+  { htmlPagePost :: Post,
+    htmlPageContent :: T.Text
+  }
+
 type Preprocessor = Project -> Post -> ExceptT ErrorMessage IO Post
+
+type Postprocessor = Project -> HTMLPage -> ExceptT ErrorMessage IO HTMLPage

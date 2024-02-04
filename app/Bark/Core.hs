@@ -13,7 +13,7 @@ where
 
 import Bark.FrontMatter (PostFrontMatter (..), parseFrontMatter)
 import Bark.Internal.IOUtil (ErrorMessage, copyDirectory, tryReadFileBS, tryReadFileT)
-import Bark.Types (Post (..), Preprocessor, Project (..))
+import Bark.Types (HTMLPage (..), Post (..), Postprocessor, Project (..))
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Arrow (ArrowChoice (left))
@@ -106,7 +106,7 @@ loadTemplate project post = do
   let template = Mustache.compileTemplate templatePath templateContent
   liftEither $ left show template
 
-buildPost :: Project -> Post -> ExceptT ErrorMessage IO ()
+buildPost :: Project -> Post -> ExceptT ErrorMessage IO HTMLPage
 buildPost project post = do
   postHtml <- liftEither $ postToHtml post
   template <- loadTemplate project post
@@ -120,8 +120,13 @@ buildPost project post = do
               ++ postOtherData post
       output = Mustache.substitute template postData
       outPath = postDstPath post
+  return $ HTMLPage post output
+
+writeHtmlPage :: HTMLPage -> ExceptT ErrorMessage IO ()
+writeHtmlPage (HTMLPage post content) = do
+  let outPath = postDstPath post
   liftIO $ createDirectoryIfMissing True $ takeDirectory outPath
-  liftIO $ TIO.writeFile outPath output
+  liftIO $ TIO.writeFile outPath content
 
 -- | Get a list of all posts in the project.
 getPosts :: Project -> ExceptT ErrorMessage IO [Post]
@@ -131,9 +136,11 @@ getPosts project = do
   let markdownFiles = filter ((`elem` [".markdown", ".md"]) . takeExtension) files
   mapM (getPostFromMdfile project) markdownFiles
 
-buildProjectImpl :: Project -> [Post] -> ExceptT ErrorMessage IO ()
-buildProjectImpl project posts = do
-  mapM_ (buildPost project) posts
+buildProjectImpl :: Project -> [Postprocessor] -> [Post] -> ExceptT ErrorMessage IO ()
+buildProjectImpl project postprocessors posts = do
+  pages <- mapM (buildPost project) posts
+  processedPages <- mapM applyPostprocessors pages
+  mapM_ writeHtmlPage processedPages
   liftIO $ do
     hasAssets <- doesDirectoryExist assetsDir
     when hasAssets $
@@ -142,6 +149,12 @@ buildProjectImpl project posts = do
     rootDir = projectRoot project
     outDir = projectOutDir project
     assetsDir = projectAssetsDir project
+
+    applyPostprocessors :: HTMLPage -> ExceptT ErrorMessage IO HTMLPage
+    applyPostprocessors post = foldM applyPostprocessor post postprocessors
+
+    applyPostprocessor :: HTMLPage -> Postprocessor -> ExceptT ErrorMessage IO HTMLPage
+    applyPostprocessor post p = p project post
 
 addPostListToMeta :: [Post] -> ExceptT ErrorMessage IO [Post]
 addPostListToMeta posts' = do
@@ -157,15 +170,9 @@ addPostListToMeta posts' = do
 buildProject :: Project -> ExceptT ErrorMessage IO ()
 buildProject project = do
   posts <- getPosts project >>= addPostListToMeta
-  buildProjectImpl project posts
+  buildProjectImpl project [] posts
 
-buildProjectWith :: [Preprocessor] -> Project -> ExceptT ErrorMessage IO ()
-buildProjectWith preprocessors project = do
+buildProjectWith :: [Postprocessor] -> Project -> ExceptT ErrorMessage IO ()
+buildProjectWith postprocessors project = do
   posts <- getPosts project >>= addPostListToMeta
-  processedPosts <- mapM applyPreprocessors posts
-  buildProjectImpl project processedPosts
-  where
-    applyPreprocessors post = foldM applyPreprocessor post preprocessors
-
-    applyPreprocessor :: Post -> Preprocessor -> ExceptT ErrorMessage IO Post
-    applyPreprocessor post p = p project post
+  buildProjectImpl project postprocessors posts

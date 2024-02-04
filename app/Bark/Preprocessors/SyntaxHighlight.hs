@@ -2,7 +2,7 @@
 
 module Bark.Preprocessors.SyntaxHighlight (highlightSnippets) where
 
-import Bark.Types (Post (..), Preprocessor)
+import Bark.Types (HTMLPage (..), Postprocessor)
 import qualified Data.List as List
 import Data.Map ((!))
 import qualified Data.Maybe as M
@@ -63,7 +63,7 @@ highlightSnippets' :: T.Text -> T.Text
 highlightSnippets' = H.renderTags . highLightAST . H.parseTags
 
 -- | Syntax highlight all <code> snippets in the AST.
-highlightSnippets :: Preprocessor
-highlightSnippets _ post = do
-  let html = highlightSnippets' (postContent post)
-   in return $ post {postContent = html}
+highlightSnippets :: Postprocessor
+highlightSnippets _ page@(HTMLPage post html) = do
+  let highlightedHTML = highlightSnippets' html
+   in return $ page {htmlPageContent = highlightedHTML}
