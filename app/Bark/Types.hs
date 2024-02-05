@@ -62,3 +62,7 @@ data HTMLPage = HTMLPage
 type Preprocessor = Project -> Post -> ExceptT ErrorMessage IO Post
 
 type Postprocessor = Project -> HTMLPage -> ExceptT ErrorMessage IO HTMLPage
+
+data Processor
+  = OnPost Preprocessor
+  | OnHTML Postprocessor

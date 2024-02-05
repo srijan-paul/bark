@@ -42,6 +42,14 @@ import System.FilePath
 import qualified Text.Mustache as Mustache
 import qualified Text.Mustache.Types as Mustache
 
+-- | From markdown file path, get the post's URL.
+-- ### Examples:
+--
+-- > urlFromMdPath "project_root/hello-world.md" = "hello-world/index.html"
+--
+-- > urlFromMdPath "project_root/blog/hello-world.md" = "blog/hello-world/index.html"
+--
+-- > urlFromMdPath "project_root/blog/index.md" = "blog/index.html"
 urlFromMdPath :: Project -> FilePath -> FilePath
 urlFromMdPath Project {projectSourceDir = sourceDir} mdFilePath
   | takeBaseName mdFilePath == "index" = replaceExtension (makeRelative sourceDir mdFilePath) ".html"
@@ -64,6 +72,7 @@ getPostFromMdfile project filePath = do
         postOtherData = []
       }
 
+-- | Convert markdown content to HTML.
 md2Html :: FilePath -> T.Text -> Either ErrorMessage T.Text
 md2Html path contents =
   bimap show (TL.toStrict . renderHtml) (runIdentity parseResult)
@@ -92,6 +101,7 @@ stripFrontMatter = T.unlines . skipFrontMatter . T.lines
             Nothing -> lns
       | otherwise = lns
 
+-- | Convert a post's markdown content to an HTML string.
 postToHtml :: Post -> Either ErrorMessage T.Text
 postToHtml Post {postPath = path, postContent = content} =
   md2Html
@@ -138,9 +148,13 @@ getPosts project = do
 
 buildProjectImpl :: Project -> [Postprocessor] -> [Post] -> ExceptT ErrorMessage IO ()
 buildProjectImpl project postprocessors posts = do
+  -- Convert markdown posts to HTML pages.
   pages <- mapM (buildPost project) posts
+  -- apply any post compilation processors (e.g. syntax highlighting, etc.)
   processedPages <- mapM applyPostprocessors pages
+  -- write the processed pages to disk
   mapM_ writeHtmlPage processedPages
+  -- copy assets directory to the output directory
   liftIO $ do
     hasAssets <- doesDirectoryExist assetsDir
     when hasAssets $
