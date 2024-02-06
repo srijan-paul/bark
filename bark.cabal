@@ -52,14 +52,14 @@ library
         Bark.Types,
         Bark.Core,
         Bark.FrontMatter,
-        Bark.Preprocessors.SyntaxHighlight
+        Bark.Processors.SyntaxHighlight
 
 executable bark
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
     other-modules:
-        Bark.Preprocessors.SyntaxHighlight,
+        Bark.Processors.SyntaxHighlight,
         Bark.Internal.IOUtil,
         Bark.FrontMatter,
         Bark.Types,
@@ -91,10 +91,14 @@ executable bark
         aeson
 
     ghc-options:
+        -Wall
+        -O2
+        -static
         -threaded
         -fwarn-name-shadowing
         -fwarn-unused-imports
         -fwarn-tabs
+    cc-options: -static
 
     hs-source-dirs:   app
     default-language: Haskell2010

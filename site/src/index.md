@@ -2,7 +2,7 @@
 template: post
 ---
 
-# Here is a code block.
+#  This is an H1
 
 ```js
 const foo = "bar";
@@ -11,3 +11,5 @@ function twice(x) {
 }
 console.log(twice(foo))
 ```
+
+## This is an H2

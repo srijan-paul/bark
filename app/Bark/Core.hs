@@ -1,3 +1,4 @@
+{-# LANGUAGE NumericUnderscores #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Bark.Core
@@ -8,6 +9,7 @@ module Bark.Core
     buildPost,
     buildProject,
     buildProjectWith,
+    watchProjectWith,
   )
 where
 
@@ -17,7 +19,9 @@ import Bark.Types (HTMLPage (..), Post (..), Postprocessor, Project (..))
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Arrow (ArrowChoice (left))
-import Control.Monad.Except (ExceptT, MonadIO (liftIO), foldM, liftEither, when)
+import Control.Concurrent (threadDelay)
+import Control.Monad (forever)
+import Control.Monad.Except (ExceptT, MonadIO (liftIO), foldM, liftEither, runExceptT, when)
 import Control.Monad.Identity (Identity (runIdentity))
 import Data.Bifunctor (Bifunctor (bimap))
 import qualified Data.Char as Char
@@ -30,6 +34,7 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Vector as Vector
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
 import System.Directory.Recursive (getFilesRecursive)
+import qualified System.FSNotify as FS
 import System.FilePath
   ( dropExtension,
     makeRelative,
@@ -55,7 +60,7 @@ urlFromMdPath Project {projectSourceDir = sourceDir} mdFilePath
   | takeBaseName mdFilePath == "index" = replaceExtension (makeRelative sourceDir mdFilePath) ".html"
   | otherwise = makeRelative sourceDir (dropExtension mdFilePath </> "index.html")
 
--- | Parse a post from a markdown file.
+-- | Parse a post belonging to a project from a markdown file path.
 getPostFromMdfile :: Project -> FilePath -> ExceptT ErrorMessage IO Post
 getPostFromMdfile project filePath = do
   content <- tryReadFileBS filePath
@@ -129,7 +134,6 @@ buildPost project post = do
             ]
               ++ postOtherData post
       output = Mustache.substitute template postData
-      outPath = postDstPath post
   return $ HTMLPage post output
 
 writeHtmlPage :: HTMLPage -> ExceptT ErrorMessage IO ()
@@ -151,7 +155,7 @@ buildProjectImpl project postprocessors posts = do
   -- Convert markdown posts to HTML pages.
   pages <- mapM (buildPost project) posts
   -- apply any post compilation processors (e.g. syntax highlighting, etc.)
-  processedPages <- mapM applyPostprocessors pages
+  processedPages <- mapM applyHtmlProcessors pages
   -- write the processed pages to disk
   mapM_ writeHtmlPage processedPages
   -- copy assets directory to the output directory
@@ -164,11 +168,8 @@ buildProjectImpl project postprocessors posts = do
     outDir = projectOutDir project
     assetsDir = projectAssetsDir project
 
-    applyPostprocessors :: HTMLPage -> ExceptT ErrorMessage IO HTMLPage
-    applyPostprocessors post = foldM applyPostprocessor post postprocessors
-
-    applyPostprocessor :: HTMLPage -> Postprocessor -> ExceptT ErrorMessage IO HTMLPage
-    applyPostprocessor post p = p project post
+    applyHtmlProcessors :: HTMLPage -> ExceptT ErrorMessage IO HTMLPage
+    applyHtmlProcessors post = foldM (\post p -> p project post) post postprocessors
 
 addPostListToMeta :: [Post] -> ExceptT ErrorMessage IO [Post]
 addPostListToMeta posts' = do
@@ -190,3 +191,15 @@ buildProjectWith :: [Postprocessor] -> Project -> ExceptT ErrorMessage IO ()
 buildProjectWith postprocessors project = do
   posts <- getPosts project >>= addPostListToMeta
   buildProjectImpl project postprocessors posts
+
+watchProjectWith :: [Postprocessor] -> Project -> IO FS.StopListening
+watchProjectWith processors project = FS.withManager $ \mgr -> do
+  _ <- FS.watchTree mgr rootDir (const True) (const callback)
+  forever (threadDelay 10_000_00)
+  where
+    rootDir = projectRoot project
+    callback = do
+      result <- runExceptT $ buildProjectWith processors project
+      case result of
+        Left errorMessage -> print errorMessage
+        Right _ -> return ()

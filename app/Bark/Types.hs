@@ -3,9 +3,12 @@ module Bark.Types
     Post (..),
     HTMLPage (..),
     PostFrontMatter (..),
+    Processor (..),
     Preprocessor,
     Postprocessor,
+    AssetProcessor,
     ErrorMessage,
+    AssetFile (..),
   )
 where
 
@@ -25,7 +28,7 @@ data Project = Project
     projectAssetsDir :: FilePath,
     projectTemplateDir :: FilePath
   }
-  deriving (Show)
+  deriving (Show, Eq)
 
 -- | Represents a markdown file with metadata,
 -- that will later be rendered as HTML.
@@ -54,8 +57,19 @@ data Post = Post
   }
   deriving (Show)
 
+-- | Represents a file in the project's assets directory (images, media, CSS, etc.)
+data AssetFile = AssetFile
+  { assetFilePath :: FilePath,
+    assetDstPath :: FilePath,
+    assetProject :: Project,
+    assetContent :: T.Text
+  }
+
+-- | An compiled HTML page that will be written to disk.
 data HTMLPage = HTMLPage
-  { htmlPagePost :: Post,
+  { -- | The markdown Post from which this HTML page was generated.
+    htmlPagePost :: Post,
+    -- | The HTML content of the page.
     htmlPageContent :: T.Text
   }
 
@@ -63,6 +77,11 @@ type Preprocessor = Project -> Post -> ExceptT ErrorMessage IO Post
 
 type Postprocessor = Project -> HTMLPage -> ExceptT ErrorMessage IO HTMLPage
 
+-- | Modifies an asset file in the project before it is written to disk.
+-- Useful for minifying, compressing, or otherwise modifying assets.
+type AssetProcessor = Project -> AssetFile -> ExceptT ErrorMessage IO AssetFile
+
 data Processor
   = OnPost Preprocessor
   | OnHTML Postprocessor
+  | OnAsset AssetProcessor

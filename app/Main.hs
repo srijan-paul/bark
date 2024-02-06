@@ -1,8 +1,7 @@
 module Main where
 
-import Bark.Core (Project (..), buildProjectWith)
-import Bark.Preprocessors.SyntaxHighlight (highlightSnippets)
-import Control.Monad.Except (runExceptT)
+import Bark.Core (Project (..), watchProjectWith)
+import Bark.Processors.SyntaxHighlight (highlightSnippets)
 import System.Directory (makeAbsolute)
 import System.FilePath ((</>))
 
@@ -17,5 +16,5 @@ main = do
             projectAssetsDir = projectPath </> "assets",
             projectTemplateDir = projectPath </> "template"
           }
-  result <- runExceptT $ buildProjectWith [highlightSnippets] project
+  _ <- watchProjectWith [highlightSnippets] project
   return ()

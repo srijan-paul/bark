@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bark.Preprocessors.SyntaxHighlight (highlightSnippets) where
+module Bark.Processors.SyntaxHighlight (highlightSnippets) where
 
 import Bark.Types (HTMLPage (..), Postprocessor)
 import qualified Data.List as List
