@@ -44,7 +44,8 @@ library
         frontmatter,
         bytestring,
         yaml,
-        aeson
+        aeson,
+        safe-coloured-text
     
     other-modules:
         Bark.Internal.IOUtil,
@@ -88,7 +89,8 @@ executable bark
         yaml,
         pretty-simple,
         bark:bark,
-        aeson
+        aeson,
+        safe-coloured-text
 
     ghc-options:
         -Wall

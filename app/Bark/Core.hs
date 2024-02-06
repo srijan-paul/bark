@@ -20,13 +20,13 @@ import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHt
 import Commonmark.Extensions (gfmExtensions)
 import Control.Arrow (ArrowChoice (left))
 import Control.Concurrent (threadDelay)
-import Control.Monad (forever)
+import Control.Monad (forever, unless)
 import Control.Monad.Except (ExceptT, MonadIO (liftIO), foldM, liftEither, runExceptT, when)
 import Control.Monad.Identity (Identity (runIdentity))
 import Data.Bifunctor (Bifunctor (bimap))
 import qualified Data.Char as Char
 import qualified Data.HashMap.Strict as HM
-import Data.List (findIndex)
+import Data.List (findIndex, isPrefixOf)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
@@ -38,12 +38,14 @@ import qualified System.FSNotify as FS
 import System.FilePath
   ( dropExtension,
     makeRelative,
+    normalise,
     replaceExtension,
     takeBaseName,
     takeDirectory,
     takeExtension,
     (</>),
   )
+import qualified Text.Colour as Color
 import qualified Text.Mustache as Mustache
 import qualified Text.Mustache.Types as Mustache
 
@@ -169,7 +171,7 @@ buildProjectImpl project postprocessors posts = do
     assetsDir = projectAssetsDir project
 
     applyHtmlProcessors :: HTMLPage -> ExceptT ErrorMessage IO HTMLPage
-    applyHtmlProcessors post = foldM (\post p -> p project post) post postprocessors
+    applyHtmlProcessors page = foldM (\p f -> f project p) page postprocessors
 
 addPostListToMeta :: [Post] -> ExceptT ErrorMessage IO [Post]
 addPostListToMeta posts' = do
@@ -192,14 +194,49 @@ buildProjectWith postprocessors project = do
   posts <- getPosts project >>= addPostListToMeta
   buildProjectImpl project postprocessors posts
 
-watchProjectWith :: [Postprocessor] -> Project -> IO FS.StopListening
+printWatchMessage :: T.Text -> T.Text -> IO ()
+printWatchMessage time filePath = do
+  let coloredTime = Color.fore Color.blue (Color.chunk time)
+      coloredFilePath = Color.fore Color.yellow (Color.chunk filePath)
+      txt =
+        [ Color.chunk "[",
+          coloredTime,
+          Color.chunk "] modified ",
+          coloredFilePath,
+          Color.chunk " - Rebuilt project."
+        ]
+   in putStrLn $ T.unpack $ Color.renderChunksText Color.With8Colours txt
+
+printErrorMessage :: T.Text -> IO ()
+printErrorMessage errorMessage = do
+  let message =
+        [ Color.chunk "[",
+          Color.fore Color.blue (Color.chunk "ERROR"),
+          Color.chunk "] ",
+          Color.fore Color.red (Color.chunk errorMessage)
+        ]
+   in putStrLn $ T.unpack (Color.renderChunksText Color.With8Colours message)
+
+watchProjectWith :: [Postprocessor] -> Project -> IO ()
 watchProjectWith processors project = FS.withManager $ \mgr -> do
-  _ <- FS.watchTree mgr rootDir (const True) (const callback)
-  forever (threadDelay 10_000_00)
+  _ <- FS.watchTree mgr sourceDir filterEvent callback
+  forever $ threadDelay 1_000_000
   where
-    rootDir = projectRoot project
-    callback = do
+    sourceDir = projectSourceDir project
+
+    filterEvent :: FS.Event -> Bool
+    filterEvent (FS.Modified {}) = True
+    filterEvent (FS.Added {}) = True
+    filterEvent (FS.Removed {}) = True
+    filterEvent _ = False
+
+    callback event = do
       result <- runExceptT $ buildProjectWith processors project
-      case result of
-        Left errorMessage -> print errorMessage
-        Right _ -> return ()
+      let path = normalise $ FS.eventPath event
+          relPath = makeRelative (projectRoot project) path
+          time = T.pack $ show $ FS.eventTime event
+          isInBuildDir = projectOutDir project `isPrefixOf` path
+      unless isInBuildDir $ do
+        case result of
+          Left errorMessage -> printErrorMessage (T.pack errorMessage)
+          Right _ -> printWatchMessage time (T.pack relPath)
