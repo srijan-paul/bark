@@ -19,7 +19,7 @@ import Data.Frontmatter
   )
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
-import Data.Yaml (FromJSON (..), Object (..), Value (..))
+import Data.Yaml (FromJSON (..), Object, Value (..))
 import qualified Data.Yaml.Aeson as Aeson
 import qualified Text.Mustache.Types as Mustache
 
@@ -63,3 +63,4 @@ toMustacheValue (Object o) =
   -- TODO: can I not use `show` here? Any better way to convert the key to Text?
   let toMustachePair (k, v) = (T.pack (show k), toMustacheValue v)
    in Mustache.Object $ HM.fromList $ map toMustachePair (toList o)
+toMustacheValue Null = Mustache.Null
