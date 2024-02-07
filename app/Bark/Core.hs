@@ -152,6 +152,26 @@ getPosts project = do
   let markdownFiles = filter ((`elem` [".markdown", ".md"]) . takeExtension) files
   mapM (getPostFromMdfile project) markdownFiles
 
+copyAssets :: Project -> ExceptT ErrorMessage IO ()
+copyAssets project = liftIO $ do
+  hasAssets <- doesDirectoryExist assetsDir
+  when hasAssets $
+    copyDirectory assetsDir (outDir </> makeRelative rootDir assetsDir)
+  where
+    assetsDir = projectAssetsDir project
+    rootDir = projectRoot project
+    outDir = projectOutDir project
+
+copyCopyDir :: Project -> ExceptT ErrorMessage IO ()
+copyCopyDir project = liftIO $ do
+  hasCopyDir <- doesDirectoryExist copyDir
+  when hasCopyDir $
+    copyDirectory copyDir (outDir </> makeRelative rootDir copyDir)
+  where
+    copyDir = projectCopyDir project
+    rootDir = projectRoot project
+    outDir = projectOutDir project
+
 buildProjectImpl :: Project -> [Postprocessor] -> [Post] -> ExceptT ErrorMessage IO ()
 buildProjectImpl project postprocessors posts = do
   -- Convert markdown posts to HTML pages.
@@ -161,37 +181,37 @@ buildProjectImpl project postprocessors posts = do
   -- write the processed pages to disk
   mapM_ writeHtmlPage processedPages
   -- copy assets directory to the output directory
-  liftIO $ do
-    hasAssets <- doesDirectoryExist assetsDir
-    when hasAssets $
-      copyDirectory assetsDir (outDir </> makeRelative rootDir assetsDir)
+  copyAssets project
+  -- copy the copy directory to the output directory
+  copyCopyDir project
   where
-    rootDir = projectRoot project
-    outDir = projectOutDir project
-    assetsDir = projectAssetsDir project
-
     applyHtmlProcessors :: HTMLPage -> ExceptT ErrorMessage IO HTMLPage
     applyHtmlProcessors page = foldM (\p f -> f project p) page postprocessors
 
-addPostListToMeta :: [Post] -> ExceptT ErrorMessage IO [Post]
-addPostListToMeta posts' = do
+addPostListToMeta :: Project -> [Post] -> ExceptT ErrorMessage IO [Post]
+addPostListToMeta (Project {projectOutDir = outDir}) posts' = do
   -- Every post has an additional data field called `posts`.
   -- It is an array of all posts in the project.
-  let allPosts =
-        (Mustache.Array . Vector.fromList) $
-          map (Mustache.Object . fmMetaData . postFrontMatter) posts'
+  let allPosts = Mustache.Array $ Vector.fromList $ map getPostData posts'
       posts = map (\p -> p {postOtherData = [("posts", allPosts)]}) posts'
   return posts
+  where
+    getPostData :: Post -> Mustache.Value
+    getPostData post =
+      let meta = Mustache.Object $ fmMetaData $ postFrontMatter post
+          relativeUrl = makeRelative outDir (postDstPath post)
+          dstPath = Mustache.String $ T.pack relativeUrl
+       in Mustache.Object $ HM.fromList [("meta", meta), ("dstPath", dstPath)]
 
 -- | Build a bark project
 buildProject :: Project -> ExceptT ErrorMessage IO ()
 buildProject project = do
-  posts <- getPosts project >>= addPostListToMeta
+  posts <- getPosts project >>= addPostListToMeta project
   buildProjectImpl project [] posts
 
 buildProjectWith :: [Postprocessor] -> Project -> ExceptT ErrorMessage IO ()
 buildProjectWith postprocessors project = do
-  posts <- getPosts project >>= addPostListToMeta
+  posts <- getPosts project >>= addPostListToMeta project
   buildProjectImpl project postprocessors posts
 
 printWatchMessage :: T.Text -> T.Text -> IO ()
@@ -220,9 +240,15 @@ printErrorMessage errorMessage = do
 watchProjectWith :: [Postprocessor] -> Project -> IO ()
 watchProjectWith processors project = FS.withManager $ \mgr -> do
   _ <- FS.watchTree mgr sourceDir filterEvent callback
+  _ <- FS.watchTree mgr assetsDir filterEvent callback
+  _ <- FS.watchTree mgr templateDir filterEvent callback
+  _ <- FS.watchTree mgr copyDir filterEvent callback
   forever $ threadDelay 1_000_000
   where
     sourceDir = projectSourceDir project
+    assetsDir = projectAssetsDir project
+    templateDir = projectTemplateDir project
+    copyDir = projectCopyDir project
 
     filterEvent :: FS.Event -> Bool
     filterEvent (FS.Modified {}) = True

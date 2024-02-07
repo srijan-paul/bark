@@ -26,7 +26,8 @@ data Project = Project
     projectSourceDir :: FilePath,
     projectOutDir :: FilePath,
     projectAssetsDir :: FilePath,
-    projectTemplateDir :: FilePath
+    projectTemplateDir :: FilePath,
+    projectCopyDir :: FilePath
   }
   deriving (Show, Eq)
 

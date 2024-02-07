@@ -4,7 +4,7 @@ import Bark.Core (Project (..), buildProjectWith, watchProjectWith)
 import Bark.Processors.SyntaxHighlight (highlightSnippets)
 import Control.Monad.Except (runExceptT)
 import Data.Maybe (fromMaybe)
-import System.Directory (makeAbsolute)
+import System.Directory (createDirectoryIfMissing, makeAbsolute)
 import System.Environment (getArgs)
 import System.FilePath ((</>))
 
@@ -15,6 +15,7 @@ head' (x : _) = Just x
 data Command
   = Build FilePath
   | Watch FilePath
+  | Init FilePath
   deriving (Show)
 
 getProject :: FilePath -> IO Project
@@ -26,7 +27,8 @@ getProject path = do
         projectSourceDir = projectPath </> "src",
         projectOutDir = projectPath </> "build",
         projectAssetsDir = projectPath </> "assets",
-        projectTemplateDir = projectPath </> "template"
+        projectTemplateDir = projectPath </> "template",
+        projectCopyDir = projectPath </> "copy"
       }
 
 doCommand :: Command -> IO ()
@@ -40,6 +42,16 @@ doCommand (Watch path) = do
   putStrLn $ "Watching " ++ path ++ "..."
   project <- getProject path
   watchProjectWith [highlightSnippets] project
+doCommand (Init path) = do
+  putStrLn $ "Initialized bark project in" ++ path
+  mapM_
+    (createDirectoryIfMissing True)
+    [ path </> "src",
+      path </> "build",
+      path </> "assets",
+      path </> "template",
+      path </> "copy"
+    ]
 
 parseCommand :: [String] -> Maybe Command
 parseCommand args = do
@@ -52,6 +64,7 @@ parseCommand args = do
     commandCtor :: String -> Maybe (String -> Command)
     commandCtor "build" = Just Build
     commandCtor "watch" = Just Watch
+    commandCtor "init" = Just Init
     commandCtor _ = Nothing
 
     parseCommandArg :: [String] -> String
