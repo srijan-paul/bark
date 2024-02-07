@@ -21,24 +21,10 @@ extra-source-files:
     CHANGELOG.md
     README.md
 
-library bark-internal
-    hs-source-dirs: app
-    build-depends:
-        base,
-        containers,
-        mustache,
-        text,
-        filepath,
-        dir-traverse,
-        directory
-    exposed-modules:
-        Bark.Internal.IOUtil
-
 library
     hs-source-dirs: app
     build-depends:
         base,
-        bark:bark-internal,
         commonmark,
         commonmark-extensions,
         text,
@@ -52,22 +38,33 @@ library
         dir-traverse,
         skylighting,
         tagsoup,
-        blaze-html
-
+        blaze-html,
+        either,
+        mtl,
+        frontmatter,
+        bytestring,
+        yaml,
+        aeson,
+        safe-coloured-text
+    
+    other-modules:
+        Bark.Internal.IOUtil,
     exposed-modules:
+        Bark.Types,
         Bark.Core,
         Bark.FrontMatter,
-        Bark.Transformers
-
+        Bark.Processors.SyntaxHighlight
 
 executable bark
     main-is:          Main.hs
 
     -- Modules included in this executable, other than Main.
     other-modules:
-        Bark.Core,
+        Bark.Processors.SyntaxHighlight,
+        Bark.Internal.IOUtil,
         Bark.FrontMatter,
-        Bark.Transformers
+        Bark.Types,
+        Bark.Core
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:
@@ -85,13 +82,25 @@ executable bark
         dir-traverse,
         skylighting,
         tagsoup,
-        blaze-html
+        blaze-html,
+        mtl,
+        frontmatter,
+        bytestring,
+        yaml,
+        pretty-simple,
+        bark:bark,
+        aeson,
+        safe-coloured-text
 
     ghc-options:
+        -Wall
+        -O2
+        -static
         -threaded
         -fwarn-name-shadowing
         -fwarn-unused-imports
         -fwarn-tabs
+    cc-options: -static
 
     hs-source-dirs:   app
     default-language: Haskell2010
@@ -103,10 +112,12 @@ Test-Suite test-bark
     build-depends:
         base,
         bark,
-        bark:bark-internal,
         test-framework,
         test-framework-hunit,
         HUnit,
         containers,
+        unordered-containers,
         mustache,
+        aeson,
+        yaml,
         text

@@ -1,101 +1,64 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE OverloadedStrings #-}
 
-module Bark.FrontMatter (tokenize, Token (..), parseString, parseFromTokens) where
+module Bark.FrontMatter
+  ( parseFrontMatter,
+    PostFrontMatter (..),
+    toMustacheValue,
+    toMustacheObject,
+  )
+where
 
-import qualified Data.Bifunctor as Bifunctor
-import Data.Char (isAlphaNum, isSpace)
-import Data.HashMap.Strict (HashMap, empty, insert)
-import qualified Data.Text as T 
-import qualified Data.Vector as Vec (fromList)
-import Text.Mustache.Types (Value (..))
+import Bark.Internal.IOUtil (ErrorMessage)
+import Data.Aeson.Key (toText)
+import Data.Aeson.KeyMap (toList)
+import Data.Aeson.Types (typeMismatch, (.:))
+import qualified Data.ByteString as BS
+import Data.Frontmatter
+  ( IResult (Done, Fail, Partial),
+    parseYamlFrontmatter,
+  )
+import qualified Data.HashMap.Strict as HM
+import qualified Data.Text as T
+import Data.Yaml (FromJSON (..), Object, Value (..))
+import qualified Data.Yaml.Aeson as Aeson
+import qualified Text.Mustache.Types as Mustache
 
-data Token
-  = TString String -- ".*"
-  | TKey String -- [a-zA-Z0-9_]+
-  | TColon -- :
-  | TLSqBrac -- [
-  | TRSqBrac -- ]
-  | TLBrac -- {
-  | TRBrac -- }
-  | TError String
-  deriving (Eq, Show)
+data PostFrontMatter = PostFrontMatter
+  { fmTemplate :: T.Text, -- template to use for rendering.
+    fmMetaData :: Mustache.Object -- other metadata for the post (will also include 'template' field)
+  }
+  deriving (Show)
 
-type ParseError = String
+instance FromJSON PostFrontMatter where
+  parseJSON :: Value -> Aeson.Parser PostFrontMatter
+  parseJSON (Aeson.Object o) = do
+    template <- o .: "template"
+    return $
+      PostFrontMatter
+        { fmTemplate = template,
+          fmMetaData = toMustacheObject o
+        }
 
-isIdChar :: Char -> Bool
-isIdChar c = isAlphaNum c || c == '_'
+  -- frontmatter must be an object. Anything else results in parse failure.
+  parseJSON other = typeMismatch "Object" other
 
-tokenize :: String -> [Token]
-tokenize "" = []
-tokenize text@(c : rest)
-  | isSpace c = tokenize rest
-  | c == '[' = TLSqBrac : tokenize rest
-  | c == ']' = TRSqBrac : tokenize rest
-  | c == ':' = TColon : tokenize rest
-  | c == '{' = TLBrac : tokenize rest
-  | c == '}' = TRBrac : tokenize rest
-  | c == '"' =
-    let (stringValue, restOfText) = span (/= '"') rest
-     in if restOfText /= ""
-          then TString stringValue : tokenize (tail restOfText)
-          else [TError "Unterminated string"]
-  | isIdChar c =
-    let (ident, restOfText) = span isIdChar text
-     in TKey ident : tokenize restOfText
-  | otherwise = [TError $ "Unexpected character: " ++ [c]]
+parseFrontMatter :: FilePath -> BS.ByteString -> Either ErrorMessage PostFrontMatter
+parseFrontMatter filePath contents = do
+  case parseYamlFrontmatter contents of
+    Done _ fm -> Right fm
+    Fail _ _ errMsg -> Left $ "Failed to parse YAML frontmatter for " ++ filePath ++ ": " ++ errMsg
+    Partial _ -> Left $ "Unexpected end of input when trying to parse frontmatter for " ++ filePath
 
-newtype Parser a = Parser (String -> Either ParseError (a, String))
+toMustacheObject :: Object -> Mustache.Object
+toMustacheObject o =
+  let toMustachePair (k, v) = (toText k, toMustacheValue v)
+   in HM.fromList $ map toMustachePair (toList o)
 
-parse :: Parser a -> String -> Either ParseError (a, String)
-parse (Parser p) = p
-
-parseList :: [Value] -> [Token] -> Either ParseError ([Value], [Token])
-parseList acc tokens =
-  case tokens of
-    TRSqBrac : toks -> Right (reverse acc, toks)
-    tok : toks ->
-      case parse' tokens of
-        Right (value, restOfTokens) -> parseList (value : acc) restOfTokens
-        Left errMsg -> Left errMsg
-    [] -> Left "Expected ']' to close list, but found end of input"
-
-type MetaMapEntry = (T.Text, Value)
-
-type MetaMap = HashMap T.Text Value
-
-parseMapEntry :: [Token] -> Either ParseError (MetaMapEntry, [Token])
-parseMapEntry [TKey key] =
-  Left "Expected ':' after map key."
-parseMapEntry (TKey key : [TColon]) =
-  Left "Unexpected end of input while reading map entry."
-parseMapEntry (TKey key : TColon : toks) =
-  Bifunctor.first (T.pack key,) <$> parse' toks
-parseMapEntry token =
-  Left $ "Unexpected token while parsing map entry: " ++ show token
-
-parseMap :: MetaMap -> [Token] -> Either ParseError (MetaMap, [Token])
-parseMap acc [] = Right (acc, [])
-parseMap acc tokstream@(token : toks) =
-  case token of
-    TKey key ->
-      case parseMapEntry tokstream of
-        Right ((k, v), restOfToks) -> parseMap (insert k v acc) restOfToks
-        Left err -> Left err
-    TRBrac -> Right (acc, toks)
-    other -> Left $ "Unexpected token while reading map: " ++ show other
-
-parse' :: [Token] -> Either ParseError (Value, [Token])
-parse' tokstream@(token : rest) =
-  case token of
-    TString str -> Right (String $ T.pack str, rest)
-    TLSqBrac -> Bifunctor.first (Array . Vec.fromList) <$> parseList [] rest
-    TLBrac -> Bifunctor.first Object <$> parseMap empty rest
-    TError errMessage -> Left errMessage
-    unknownToken -> Left $ "Unexpected token " ++ show unknownToken
-parse' [] = Right (Null, [])
-
-parseFromTokens :: [Token] -> Either ParseError Value
-parseFromTokens tokens = fst <$> parse' tokens
-
-parseString :: String -> Either ParseError Value
-parseString = parseFromTokens . tokenize
+toMustacheValue :: Value -> Mustache.Value
+toMustacheValue (Array a) = Mustache.Array $ fmap toMustacheValue a
+toMustacheValue (String text) = Mustache.String text
+toMustacheValue (Number n) = Mustache.Number n
+toMustacheValue (Bool b) = Mustache.Bool b
+toMustacheValue Null = Mustache.Null
+toMustacheValue (Object o) = Mustache.Object $ toMustacheObject o

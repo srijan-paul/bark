@@ -1,51 +1,78 @@
 module Main where
 
-import Bark.Core (buildProject, initProject)
-import Control.Concurrent (threadDelay)
-import Control.Monad (forever, when)
-import System.Directory (getCurrentDirectory)
+import Bark.Core (Project (..), buildProjectWith, watchProjectWith)
+import Bark.Processors.SyntaxHighlight (highlightSnippets)
+import Control.Monad.Except (runExceptT)
+import Data.Maybe (fromMaybe)
+import System.Directory (createDirectoryIfMissing, makeAbsolute)
 import System.Environment (getArgs)
-import System.Exit (exitSuccess)
-import System.FSNotify (watchDir, withManager)
 import System.FilePath ((</>))
 
-buildAndLog :: FilePath -> IO ()
-buildAndLog projectDir = do
-  buildProject projectDir
-  putStrLn "Built project"
+head' :: [a] -> Maybe a
+head' [] = Nothing
+head' (x : _) = Just x
 
-watchProject :: FilePath -> IO ()
-watchProject dir =
-  let contentPath = dir </> "src"
-   in withManager $ \mgr -> do
-        watchDir mgr contentPath (const True) (\_ -> buildAndLog dir)
-        forever $ threadDelay 1000000
+data Command
+  = Build FilePath
+  | Watch FilePath
+  | Init FilePath
+  deriving (Show)
 
-showInfo :: IO ()
-showInfo =
-  putStrLn 
-    "Bark v0.1.0. commands available:\n\
-    \build: build the current project\n\
-    \watch: watch the directory and build whenever changes are detected."
+getProject :: FilePath -> IO Project
+getProject path = do
+  projectPath <- makeAbsolute path
+  return
+    Project
+      { projectRoot = projectPath,
+        projectSourceDir = projectPath </> "src",
+        projectOutDir = projectPath </> "build",
+        projectAssetsDir = projectPath </> "assets",
+        projectTemplateDir = projectPath </> "template",
+        projectCopyDir = projectPath </> "copy"
+      }
 
-execCommand :: FilePath -> String -> IO ()
-execCommand cwd cmd =
-  case cmd of
-    "build" -> do
-      buildProject cwd
-      exitSuccess
-    "init" -> do
-      initProject cwd
-      exitSuccess
-    "watch" -> watchProject cwd
-    _ -> do
-      putStrLn $ "unknown command: " ++ cmd
+doCommand :: Command -> IO ()
+doCommand (Build path) = do
+  project <- getProject path
+  result <- runExceptT $ buildProjectWith [highlightSnippets] project
+  case result of
+    Left err -> putStrLn $ "Build failed: " ++ err
+    Right _ -> return ()
+doCommand (Watch path) = do
+  putStrLn $ "Watching " ++ path ++ "..."
+  project <- getProject path
+  watchProjectWith [highlightSnippets] project
+doCommand (Init path) = do
+  putStrLn $ "Initialized bark project in" ++ path
+  mapM_
+    (createDirectoryIfMissing True)
+    [ path </> "src",
+      path </> "build",
+      path </> "assets",
+      path </> "template",
+      path </> "copy"
+    ]
+
+parseCommand :: [String] -> Maybe Command
+parseCommand args = do
+  case (head' args, tail args) of
+    (Just commandStr, rest) -> do
+      ctor <- commandCtor commandStr
+      return $ ctor (parseCommandArg rest)
+    _ -> Nothing
+  where
+    commandCtor :: String -> Maybe (String -> Command)
+    commandCtor "build" = Just Build
+    commandCtor "watch" = Just Watch
+    commandCtor "init" = Just Init
+    commandCtor _ = Nothing
+
+    parseCommandArg :: [String] -> String
+    parseCommandArg xs = fromMaybe "." (head' xs)
 
 main :: IO ()
 main = do
-  args <- getArgs
-  when (null args) $ do
-    showInfo
-    exitSuccess
-  cwd <- getCurrentDirectory
-  execCommand cwd $ head args
+  maybeCommand <- parseCommand <$> getArgs
+  case maybeCommand of
+    Just command -> doCommand command
+    Nothing -> putStrLn "Usage: bark [build|watch]"
