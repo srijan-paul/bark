@@ -116,5 +116,8 @@ Test-Suite test-bark
         test-framework-hunit,
         HUnit,
         containers,
+        unordered-containers,
         mustache,
+        aeson,
+        yaml,
         text

@@ -10,6 +10,7 @@ module Bark.FrontMatter
 where
 
 import Bark.Internal.IOUtil (ErrorMessage)
+import Data.Aeson.Key (toText)
 import Data.Aeson.KeyMap (toList)
 import Data.Aeson.Types (typeMismatch, (.:))
 import qualified Data.ByteString as BS
@@ -51,7 +52,7 @@ parseFrontMatter filePath contents = do
 
 toMustacheObject :: Object -> Mustache.Object
 toMustacheObject o =
-  let toMustachePair (k, v) = (T.pack (show k), toMustacheValue v)
+  let toMustachePair (k, v) = (toText k, toMustacheValue v)
    in HM.fromList $ map toMustachePair (toList o)
 
 toMustacheValue :: Value -> Mustache.Value
@@ -59,8 +60,5 @@ toMustacheValue (Array a) = Mustache.Array $ fmap toMustacheValue a
 toMustacheValue (String text) = Mustache.String text
 toMustacheValue (Number n) = Mustache.Number n
 toMustacheValue (Bool b) = Mustache.Bool b
-toMustacheValue (Object o) =
-  -- TODO: can I not use `show` here? Any better way to convert the key to Text?
-  let toMustachePair (k, v) = (T.pack (show k), toMustacheValue v)
-   in Mustache.Object $ HM.fromList $ map toMustachePair (toList o)
 toMustacheValue Null = Mustache.Null
+toMustacheValue (Object o) = Mustache.Object $ toMustacheObject o
