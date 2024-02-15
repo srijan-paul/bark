@@ -7,15 +7,27 @@ module Bark.Core
     Post (..),
     postToHtml,
     buildPost,
+    initProject,
     buildProject,
     buildProjectWith,
     watchProjectWith,
+    defaultConfig,
+    readBarkConfig,
+    readBarkProject,
+    printErrorMessage,
+    printInfoMessage,
   )
 where
 
 import Bark.FrontMatter (PostFrontMatter (..), parseFrontMatter)
 import Bark.Internal.IOUtil (ErrorMessage, copyDirectory, tryReadFileBS, tryReadFileT)
-import Bark.Types (HTMLPage (..), Post (..), Postprocessor, Project (..))
+import Bark.Types
+  ( HTMLPage (..),
+    Post (..),
+    Postprocessor,
+    Project (..),
+    ProjectConfig (..),
+  )
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Arrow (ArrowChoice (left))
@@ -32,7 +44,8 @@ import qualified Data.Text.Encoding as T
 import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Data.Vector as Vector
-import System.Directory (createDirectoryIfMissing, doesDirectoryExist)
+import Data.Yaml (decodeFileEither, prettyPrintParseException)
+import System.Directory (createDirectoryIfMissing, doesDirectoryExist, makeAbsolute)
 import System.Directory.Recursive (getFilesRecursive)
 import qualified System.FSNotify as FS
 import System.FilePath
@@ -48,6 +61,52 @@ import System.FilePath
 import qualified Text.Colour as Color
 import qualified Text.Mustache as Mustache
 import qualified Text.Mustache.Types as Mustache
+
+defaultConfig :: T.Text
+defaultConfig =
+  "# All paths are relative to the project root directory.\n\
+  \source: src\n\
+  \out: build\n\
+  \assets: assets\n\
+  \template: template\n\
+  \copy: copy\n"
+
+initProject :: FilePath -> ExceptT ErrorMessage IO Project
+initProject path = do
+  liftIO $ createDirectoryIfMissing True path
+  liftIO $ TIO.writeFile (path </> "bark.yml") defaultConfig
+  project <- readBarkProject path
+  liftIO $
+    mapM_
+      (createDirectoryIfMissing True)
+      [ projectSourceDir project,
+        projectOutDir project,
+        projectAssetsDir project,
+        projectTemplateDir project,
+        projectCopyDir project
+      ]
+
+  return project
+
+readBarkConfig :: FilePath -> ExceptT ErrorMessage IO ProjectConfig
+readBarkConfig path = do
+  result <- liftIO $ decodeFileEither path
+  liftEither $ left prettyPrintParseException result
+
+-- | Read a bark project from a config file.
+readBarkProject :: FilePath -> ExceptT ErrorMessage IO Project
+readBarkProject path = do
+  rootPath <- liftIO $ makeAbsolute path
+  config <- readBarkConfig (rootPath </> "bark.yml")
+  return $
+    Project
+      { projectRoot = rootPath,
+        projectSourceDir = rootPath </> configSourceDir config,
+        projectOutDir = configOutDir config,
+        projectAssetsDir = configAssetsDir config,
+        projectTemplateDir = configTemplateDir config,
+        projectCopyDir = configCopyDir config
+      }
 
 -- | From markdown file path, get the post's URL.
 -- ### Examples:
@@ -166,10 +225,9 @@ copyCopyDir :: Project -> ExceptT ErrorMessage IO ()
 copyCopyDir project = liftIO $ do
   hasCopyDir <- doesDirectoryExist copyDir
   when hasCopyDir $
-    copyDirectory copyDir (outDir </> makeRelative rootDir copyDir)
+    copyDirectory copyDir outDir
   where
     copyDir = projectCopyDir project
-    rootDir = projectRoot project
     outDir = projectOutDir project
 
 buildProjectImpl :: Project -> [Postprocessor] -> [Post] -> ExceptT ErrorMessage IO ()
@@ -227,13 +285,22 @@ printWatchMessage time filePath = do
         ]
    in putStrLn $ T.unpack $ Color.renderChunksText Color.With8Colours txt
 
+printInfoMessage :: T.Text -> IO ()
+printInfoMessage message = do
+  let txt =
+        [ Color.chunk "[",
+          Color.back Color.blue $ Color.fore Color.black (Color.chunk "INFO"),
+          Color.chunk "] ",
+          Color.fore Color.green (Color.chunk message)
+        ]
+   in putStrLn $ T.unpack (Color.renderChunksText Color.With8Colours txt)
+
 printErrorMessage :: T.Text -> IO ()
 printErrorMessage errorMessage = do
   let message =
-        [ Color.chunk "[",
-          Color.fore Color.blue (Color.chunk "ERROR"),
-          Color.chunk "] ",
-          Color.fore Color.red (Color.chunk errorMessage)
+        [ Color.fore Color.red (Color.chunk "[ERROR]"),
+          Color.chunk " ",
+          Color.fore Color.yellow (Color.chunk errorMessage)
         ]
    in putStrLn $ T.unpack (Color.renderChunksText Color.With8Colours message)
 

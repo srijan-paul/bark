@@ -1,5 +1,9 @@
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Bark.Types
   ( Project (..),
+    ProjectConfig (..),
     Post (..),
     HTMLPage (..),
     PostFrontMatter (..),
@@ -14,7 +18,9 @@ where
 
 import Bark.FrontMatter (PostFrontMatter (..))
 import Control.Monad.Except (ExceptT)
+import Data.Aeson.Types (typeMismatch, (.:))
 import qualified Data.Text as T
+import qualified Data.Yaml as Yml
 import qualified Text.Mustache.Types as Mustache
 
 type ErrorMessage = String
@@ -30,6 +36,33 @@ data Project = Project
     projectCopyDir :: FilePath
   }
   deriving (Show, Eq)
+
+data ProjectConfig = ProjectConfig
+  { configSourceDir :: FilePath,
+    configOutDir :: FilePath,
+    configAssetsDir :: FilePath,
+    configTemplateDir :: FilePath,
+    configCopyDir :: FilePath
+  }
+  deriving (Show, Eq)
+
+instance Yml.FromJSON ProjectConfig where
+  parseJSON :: Yml.Value -> Yml.Parser ProjectConfig
+  parseJSON (Yml.Object o) = do
+    sourceDir <- o .: "source"
+    outDir <- o .: "out"
+    assetsDir <- o .: "assets"
+    templateDir <- o .: "template"
+    copyDir <- o .: "copy"
+    return $
+      ProjectConfig
+        { configSourceDir = sourceDir,
+          configOutDir = outDir,
+          configAssetsDir = assetsDir,
+          configTemplateDir = templateDir,
+          configCopyDir = copyDir
+        }
+  parseJSON other = typeMismatch "Object" other
 
 -- | Represents a markdown file with metadata,
 -- that will later be rendered as HTML.
