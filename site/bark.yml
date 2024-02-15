@@ -1,0 +1,6 @@
+# All paths are relative to the project root directory.
+source: src
+out: build
+assets: assets
+template: template
+copy: copy

@@ -1,10 +1,14 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
-import Bark.Core (Project (..), buildProjectWith, watchProjectWith)
+import Bark.Core (Project (..), buildProjectWith, initProject, printErrorMessage, printInfoMessage, readBarkProject, watchProjectWith)
 import Bark.Processors.SyntaxHighlight (highlightSnippets)
 import Control.Monad.Except (runExceptT)
 import Data.Maybe (fromMaybe)
-import System.Directory (createDirectoryIfMissing, makeAbsolute)
+import qualified Data.Text as T
+import System.Directory (makeAbsolute)
+import System.Directory.Internal.Prelude (exitFailure)
 import System.Environment (getArgs)
 import System.FilePath ((</>))
 
@@ -20,38 +24,29 @@ data Command
 
 getProject :: FilePath -> IO Project
 getProject path = do
-  projectPath <- makeAbsolute path
-  return
-    Project
-      { projectRoot = projectPath,
-        projectSourceDir = projectPath </> "src",
-        projectOutDir = projectPath </> "build",
-        projectAssetsDir = projectPath </> "assets",
-        projectTemplateDir = projectPath </> "template",
-        projectCopyDir = projectPath </> "copy"
-      }
+  project <- runExceptT $ readBarkProject path
+  case project of
+    Left err -> do
+      printErrorMessage $ T.pack $ "Failed to read project. " ++ err
+      exitFailure
+    Right p -> return p
 
 doCommand :: Command -> IO ()
 doCommand (Build path) = do
   project <- getProject path
   result <- runExceptT $ buildProjectWith [highlightSnippets] project
   case result of
-    Left err -> putStrLn $ "Build failed: " ++ err
-    Right _ -> return ()
+    Left err -> printErrorMessage $ T.pack $ "Build failed: " ++ err
+    Right _ -> printInfoMessage "Built project"
 doCommand (Watch path) = do
-  putStrLn $ "Watching " ++ path ++ "..."
+  printInfoMessage $ T.pack $ "Watching " ++ path ++ "..."
   project <- getProject path
   watchProjectWith [highlightSnippets] project
 doCommand (Init path) = do
-  putStrLn $ "Initialized bark project in" ++ path
-  mapM_
-    (createDirectoryIfMissing True)
-    [ path </> "src",
-      path </> "build",
-      path </> "assets",
-      path </> "template",
-      path </> "copy"
-    ]
+  result <- runExceptT $ initProject path
+  case result of
+    Left err -> printErrorMessage $ T.pack $ "Failed to initialize project: " ++ err
+    Right _ -> printInfoMessage "Project initialized successfully."
 
 parseCommand :: [String] -> Maybe Command
 parseCommand args = do
