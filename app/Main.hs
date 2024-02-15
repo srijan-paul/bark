@@ -7,10 +7,8 @@ import Bark.Processors.SyntaxHighlight (highlightSnippets)
 import Control.Monad.Except (runExceptT)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
-import System.Directory (makeAbsolute)
 import System.Directory.Internal.Prelude (exitFailure)
 import System.Environment (getArgs)
-import System.FilePath ((</>))
 
 head' :: [a] -> Maybe a
 head' [] = Nothing

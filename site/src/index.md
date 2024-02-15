@@ -14,5 +14,5 @@ For advanced usage, consult the [library documentation](#)
 import Prelude
 
 main :: IO ()
-main = putStrLn "Hello, world"
+main = putStrLn "Hello, world!"
 ```

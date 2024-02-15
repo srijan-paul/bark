@@ -288,9 +288,8 @@ printWatchMessage time filePath = do
 printInfoMessage :: T.Text -> IO ()
 printInfoMessage message = do
   let txt =
-        [ Color.chunk "[",
-          Color.back Color.blue $ Color.fore Color.black (Color.chunk "INFO"),
-          Color.chunk "] ",
+        [ Color.back Color.blue $ Color.fore Color.black (Color.chunk "[INFO]"),
+          Color.chunk " ",
           Color.fore Color.green (Color.chunk message)
         ]
    in putStrLn $ T.unpack (Color.renderChunksText Color.With8Colours txt)
