@@ -26,9 +26,9 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import System.Directory.Internal.Prelude (exitFailure)
 
-head' :: [a] -> Maybe a
-head' [] = Nothing
-head' (x : _) = Just x
+safeHead :: [a] -> Maybe a
+safeHead [] = Nothing
+safeHead (x : _) = Just x
 
 newtype BarkCLI = BarkCLI
   { barkCliProcessors :: [Processor]
@@ -74,7 +74,7 @@ doCommand _ (Init path) = do
 
 parseCommand :: [String] -> Maybe Command
 parseCommand args = do
-  case (head' args, tail args) of
+  case (safeHead args, tail args) of
     (Just commandStr, rest) -> do
       ctor <- commandCtor commandStr
       return $ ctor (parseCommandArg rest)
@@ -87,4 +87,4 @@ parseCommand args = do
     commandCtor _ = Nothing
 
     parseCommandArg :: [String] -> String
-    parseCommandArg xs = fromMaybe "." (head' xs)
+    parseCommandArg xs = fromMaybe "." (safeHead xs)

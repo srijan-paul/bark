@@ -108,7 +108,6 @@ data HTMLPage = HTMLPage
   }
 
 type Preprocessor = Project -> Post -> ExceptT ErrorMessage IO Post
-
 type Postprocessor = Project -> HTMLPage -> ExceptT ErrorMessage IO HTMLPage
 
 -- | Modifies an asset file in the project before it is written to disk.

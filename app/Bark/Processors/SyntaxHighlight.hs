@@ -64,6 +64,6 @@ highlightSnippets' = H.renderTags . highLightAST . H.parseTags
 
 -- | Syntax highlight all <code> snippets in the AST.
 highlightSnippets :: Postprocessor
-highlightSnippets _ page@(HTMLPage post html) = do
+highlightSnippets _ page@(HTMLPage _ html) = do
   let highlightedHTML = highlightSnippets' html
    in return $ page {htmlPageContent = highlightedHTML}

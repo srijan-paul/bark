@@ -25,7 +25,6 @@ import Bark.Types
   ( HTMLPage (..),
     Post (..),
     Processor(..),
-    Postprocessor,
     Project (..),
     ProjectConfig (..),
   )
@@ -233,8 +232,10 @@ copyCopyDir project = liftIO $ do
 
 buildProjectImpl :: Project -> [Processor] -> [Post] -> ExceptT ErrorMessage IO ()
 buildProjectImpl project processors posts = do
+  -- apply all preprocessors to the posts
+  processedPosts <- mapM applyPageProcessors posts
   -- Convert markdown posts to HTML pages.
-  pages <- mapM (buildPost project) posts
+  pages <- mapM (buildPost project) processedPosts 
   -- apply any post compilation processors (e.g. syntax highlighting, etc.)
   processedPages <- mapM applyHtmlProcessors pages
   -- write the processed pages to disk
@@ -251,6 +252,12 @@ buildProjectImpl project processors posts = do
     applyHtmlProcessor page (OnHTML f) = f project page
     applyHtmlProcessor page _ = return page
 
+    applyPageProcessors :: Post -> ExceptT ErrorMessage IO Post
+    applyPageProcessors page = foldM applyPageProcessor page processors
+  
+    applyPageProcessor page (OnPost f) = f project page 
+    applyPageProcessor page _ = return page
+  
 addPostListToMeta :: Project -> [Post] -> ExceptT ErrorMessage IO [Post]
 addPostListToMeta (Project {projectOutDir = outDir}) posts' = do
   -- Every post has an additional data field called `posts`.
