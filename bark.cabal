@@ -53,6 +53,7 @@ library
         Bark.Types,
         Bark.Core,
         Bark.FrontMatter,
+        Bark.CLI,
         Bark.Processors.SyntaxHighlight
 
 executable bark
@@ -64,7 +65,8 @@ executable bark
         Bark.Internal.IOUtil,
         Bark.FrontMatter,
         Bark.Types,
-        Bark.Core
+        Bark.Core,
+        Bark.CLI
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
     build-depends:

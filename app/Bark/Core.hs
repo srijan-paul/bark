@@ -24,6 +24,7 @@ import Bark.Internal.IOUtil (ErrorMessage, copyDirectory, tryReadFileBS, tryRead
 import Bark.Types
   ( HTMLPage (..),
     Post (..),
+    Processor(..),
     Postprocessor,
     Project (..),
     ProjectConfig (..),
@@ -230,8 +231,8 @@ copyCopyDir project = liftIO $ do
     copyDir = projectCopyDir project
     outDir = projectOutDir project
 
-buildProjectImpl :: Project -> [Postprocessor] -> [Post] -> ExceptT ErrorMessage IO ()
-buildProjectImpl project postprocessors posts = do
+buildProjectImpl :: Project -> [Processor] -> [Post] -> ExceptT ErrorMessage IO ()
+buildProjectImpl project processors posts = do
   -- Convert markdown posts to HTML pages.
   pages <- mapM (buildPost project) posts
   -- apply any post compilation processors (e.g. syntax highlighting, etc.)
@@ -244,7 +245,11 @@ buildProjectImpl project postprocessors posts = do
   copyCopyDir project
   where
     applyHtmlProcessors :: HTMLPage -> ExceptT ErrorMessage IO HTMLPage
-    applyHtmlProcessors page = foldM (\p f -> f project p) page postprocessors
+    applyHtmlProcessors page = foldM applyHtmlProcessor page processors
+
+    applyHtmlProcessor :: HTMLPage -> Processor -> ExceptT ErrorMessage IO HTMLPage
+    applyHtmlProcessor page (OnHTML f) = f project page
+    applyHtmlProcessor page _ = return page
 
 addPostListToMeta :: Project -> [Post] -> ExceptT ErrorMessage IO [Post]
 addPostListToMeta (Project {projectOutDir = outDir}) posts' = do
@@ -267,10 +272,10 @@ buildProject project = do
   posts <- getPosts project >>= addPostListToMeta project
   buildProjectImpl project [] posts
 
-buildProjectWith :: [Postprocessor] -> Project -> ExceptT ErrorMessage IO ()
-buildProjectWith postprocessors project = do
+buildProjectWith :: [Processor] -> Project -> ExceptT ErrorMessage IO ()
+buildProjectWith processors project = do
   posts <- getPosts project >>= addPostListToMeta project
-  buildProjectImpl project postprocessors posts
+  buildProjectImpl project processors posts
 
 printWatchMessage :: T.Text -> T.Text -> IO ()
 printWatchMessage time filePath = do
@@ -303,7 +308,7 @@ printErrorMessage errorMessage = do
         ]
    in putStrLn $ T.unpack (Color.renderChunksText Color.With8Colours message)
 
-watchProjectWith :: [Postprocessor] -> Project -> IO ()
+watchProjectWith :: [Processor] -> Project -> IO ()
 watchProjectWith processors project = FS.withManager $ \mgr -> do
   _ <- FS.watchTree mgr sourceDir filterEvent callback
   _ <- FS.watchTree mgr assetsDir filterEvent callback
