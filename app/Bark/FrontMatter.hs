@@ -30,6 +30,7 @@ data PostFrontMatter = PostFrontMatter
   }
   deriving (Show)
 
+
 instance FromJSON PostFrontMatter where
   parseJSON :: Value -> Aeson.Parser PostFrontMatter
   parseJSON (Aeson.Object o) = do
@@ -62,3 +63,5 @@ toMustacheValue (Number n) = Mustache.Number n
 toMustacheValue (Bool b) = Mustache.Bool b
 toMustacheValue Null = Mustache.Null
 toMustacheValue (Object o) = Mustache.Object $ toMustacheObject o
+
+

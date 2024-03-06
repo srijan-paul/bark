@@ -9,7 +9,6 @@ module Bark.Core
     buildPost,
     initProject,
     buildProject,
-    buildProjectWith,
     watchProjectWith,
     defaultConfig,
     readBarkConfig,
@@ -24,7 +23,7 @@ import Bark.Internal.IOUtil (ErrorMessage, copyDirectory, tryReadFileBS, tryRead
 import Bark.Types
   ( HTMLPage (..),
     Post (..),
-    Processor(..),
+    Processor (..),
     Project (..),
     ProjectConfig (..),
   )
@@ -231,11 +230,11 @@ copyCopyDir project = liftIO $ do
     outDir = projectOutDir project
 
 buildProjectImpl :: Project -> [Processor] -> [Post] -> ExceptT ErrorMessage IO ()
-buildProjectImpl project processors posts = do
+buildProjectImpl project processors postsInProject = do
   -- apply all preprocessors to the posts
-  processedPosts <- mapM applyPageProcessors posts
+  processedPosts <- preprocessPosts processors postsInProject >>= addPostListToMeta project
   -- Convert markdown posts to HTML pages.
-  pages <- mapM (buildPost project) processedPosts 
+  pages <- mapM (buildPost project) processedPosts
   -- apply any post compilation processors (e.g. syntax highlighting, etc.)
   processedPages <- mapM applyHtmlProcessors pages
   -- write the processed pages to disk
@@ -248,22 +247,27 @@ buildProjectImpl project processors posts = do
     applyHtmlProcessors :: HTMLPage -> ExceptT ErrorMessage IO HTMLPage
     applyHtmlProcessors page = foldM applyHtmlProcessor page processors
 
+    preprocessPosts :: [Processor] -> [Post] -> ExceptT ErrorMessage IO [Post]
+    preprocessPosts [] posts = return posts
+    preprocessPosts _ [] = return []
+    preprocessPosts (f:fs) posts = do
+      posts' <- mapM (preprocess f posts) posts
+      preprocessPosts fs posts'
+
+    preprocess :: Processor -> [Post] -> Post -> ExceptT ErrorMessage IO Post
+    preprocess (OnPost f) allPosts post  = f project allPosts post
+    preprocess _ _ post = return post
+
     applyHtmlProcessor :: HTMLPage -> Processor -> ExceptT ErrorMessage IO HTMLPage
     applyHtmlProcessor page (OnHTML f) = f project page
     applyHtmlProcessor page _ = return page
 
-    applyPageProcessors :: Post -> ExceptT ErrorMessage IO Post
-    applyPageProcessors page = foldM applyPageProcessor page processors
-  
-    applyPageProcessor page (OnPost f) = f project page 
-    applyPageProcessor page _ = return page
-  
 addPostListToMeta :: Project -> [Post] -> ExceptT ErrorMessage IO [Post]
 addPostListToMeta (Project {projectOutDir = outDir}) posts' = do
   -- Every post has an additional data field called `posts`.
   -- It is an array of all posts in the project.
   let allPosts = Mustache.Array $ Vector.fromList $ map getPostData posts'
-      posts = map (\p -> p {postOtherData = [("posts", allPosts)]}) posts'
+      posts = map (\p -> p {postOtherData = ("posts", allPosts) : postOtherData p}) posts'
   return posts
   where
     getPostData :: Post -> Mustache.Value
@@ -271,17 +275,12 @@ addPostListToMeta (Project {projectOutDir = outDir}) posts' = do
       let meta = Mustache.Object $ fmMetaData $ postFrontMatter post
           relativeUrl = makeRelative outDir (postDstPath post)
           dstPath = Mustache.String $ T.pack relativeUrl
-       in Mustache.Object $ HM.fromList [("meta", meta), ("dstPath", dstPath)]
+       in Mustache.Object $ HM.fromList $ [("meta", meta), ("dstPath", dstPath)] ++ postOtherData post
 
--- | Build a bark project
-buildProject :: Project -> ExceptT ErrorMessage IO ()
-buildProject project = do
-  posts <- getPosts project >>= addPostListToMeta project
-  buildProjectImpl project [] posts
-
-buildProjectWith :: [Processor] -> Project -> ExceptT ErrorMessage IO ()
-buildProjectWith processors project = do
-  posts <- getPosts project >>= addPostListToMeta project
+-- | Build a bark project using the given list of processors.
+buildProject :: Project -> [Processor] -> ExceptT ErrorMessage IO ()
+buildProject project processors = do
+  posts <- getPosts project
   buildProjectImpl project processors posts
 
 printWatchMessage :: T.Text -> T.Text -> IO ()
@@ -300,7 +299,7 @@ printWatchMessage time filePath = do
 printInfoMessage :: T.Text -> IO ()
 printInfoMessage message = do
   let txt =
-        [ Color.back Color.blue $ Color.fore Color.black (Color.chunk "[INFO]"),
+        [ Color.back Color.brightBlue $ Color.fore Color.black (Color.chunk "[INFO]"),
           Color.chunk " ",
           Color.fore Color.green (Color.chunk message)
         ]
@@ -335,7 +334,7 @@ watchProjectWith processors project = FS.withManager $ \mgr -> do
     filterEvent _ = False
 
     callback event = do
-      result <- runExceptT $ buildProjectWith processors project
+      result <- runExceptT $ buildProject project processors
       let path = normalise $ FS.eventPath event
           relPath = makeRelative (projectRoot project) path
           time = T.pack $ show $ FS.eventTime event

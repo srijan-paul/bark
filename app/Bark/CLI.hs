@@ -12,12 +12,12 @@ where
 
 import Bark.Core
   ( Project (..),
-    buildProjectWith,
     initProject,
     printErrorMessage,
     printInfoMessage,
     readBarkProject,
     watchProjectWith,
+    buildProject,
   )
 import Bark.Processors.SyntaxHighlight (highlightSnippets)
 import Bark.Types (Processor (..))
@@ -58,7 +58,7 @@ getProject path = do
 doCommand :: BarkCLI -> Command -> IO ()
 doCommand (BarkCLI processors) (Build path) = do
   project <- getProject path
-  result <- runExceptT $ buildProjectWith processors project
+  result <- runExceptT $ buildProject project processors
   case result of
     Left err -> printErrorMessage $ T.pack $ "Build failed: " ++ err
     Right _ -> printInfoMessage "Built project"

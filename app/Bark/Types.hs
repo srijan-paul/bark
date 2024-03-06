@@ -13,6 +13,7 @@ module Bark.Types
     AssetProcessor,
     ErrorMessage,
     AssetFile (..),
+    module Mustache,
   )
 where
 
@@ -21,7 +22,7 @@ import Control.Monad.Except (ExceptT)
 import Data.Aeson.Types (typeMismatch, (.:))
 import qualified Data.Text as T
 import qualified Data.Yaml as Yml
-import qualified Text.Mustache.Types as Mustache
+import Text.Mustache.Types as Mustache
 
 type ErrorMessage = String
 
@@ -83,7 +84,7 @@ data Post = Post
     -- During building, the post has three data fields that it can access:
     -- - **content**: the markdown content converted to HTML.
     -- - **meta**: the metadata from the frontmatter.
-    -- - **posts**: an array of all posts in the project.
+    -- - **posts**: an array of all posts in the project, after they've been preprocessed.
     --
     -- In addition to these, posts can be modified to have their own data fields.
     -- For example, a **website_url** field that stores the URL where the site containing all pages is hosted.
@@ -107,7 +108,7 @@ data HTMLPage = HTMLPage
     htmlPageContent :: T.Text
   }
 
-type Preprocessor = Project -> Post -> ExceptT ErrorMessage IO Post
+type Preprocessor = Project -> [Post] -> Post -> ExceptT ErrorMessage IO Post
 type Postprocessor = Project -> HTMLPage -> ExceptT ErrorMessage IO HTMLPage
 
 -- | Modifies an asset file in the project before it is written to disk.
