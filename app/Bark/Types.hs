@@ -13,6 +13,7 @@ module Bark.Types
     AssetProcessor,
     ErrorMessage,
     AssetFile (..),
+    fromList,
     module Mustache,
   )
 where
@@ -22,9 +23,14 @@ import Control.Monad.Except (ExceptT)
 import Data.Aeson.Types (typeMismatch, (.:))
 import qualified Data.Text as T
 import qualified Data.Yaml as Yml
+import qualified Data.Vector as Vector
 import Text.Mustache.Types as Mustache
 
 type ErrorMessage = String
+
+--- | Converts a list of values to an array.
+fromList :: [Mustache.Value] -> Mustache.Value
+fromList = Mustache.Array . Vector.fromList
 
 -- | Represents a Bark project.
 --  Contains absolute paths to various directories.

@@ -15,6 +15,7 @@ module Bark.Core
     readBarkProject,
     printErrorMessage,
     printInfoMessage,
+    urlFromMdPath
   )
 where
 
