@@ -15,7 +15,7 @@ module Bark.Core
     readBarkProject,
     printErrorMessage,
     printInfoMessage,
-    urlFromMdPath
+    urlFromMdPath,
   )
 where
 
@@ -135,7 +135,7 @@ getPostFromMdfile project filePath = do
         postFrontMatter = frontmatter,
         postContent = T.decodeUtf8 content,
         postUrl = url,
-        postOtherData = []
+        postData = HM.singleton "url" (Mustache.String $ T.pack url)
       }
 
 -- | Convert markdown content to HTML.
@@ -187,21 +187,21 @@ buildPost project post = do
   postHtml <- liftEither $ postToHtml post
   template <- loadTemplate project post
   let metadata = fmMetaData (postFrontMatter post)
-      postData =
+      buildData =
         Mustache.Object $
-          HM.fromList $
+          HM.fromList
             [ ("content", Mustache.String postHtml),
               ("meta", Mustache.Object metadata)
             ]
-              ++ postOtherData post
-      output = Mustache.substitute template postData
+            <> postData post
+      output = Mustache.substitute template buildData
   return $ HTMLPage post output
 
-writeHtmlPage :: HTMLPage -> ExceptT ErrorMessage IO ()
+writeHtmlPage :: HTMLPage -> IO ()
 writeHtmlPage (HTMLPage post content) = do
   let outPath = postDstPath post
-  liftIO $ createDirectoryIfMissing True $ takeDirectory outPath
-  liftIO $ TIO.writeFile outPath content
+  createDirectoryIfMissing True $ takeDirectory outPath
+  TIO.writeFile outPath content
 
 -- | Get a list of all posts in the project.
 getPosts :: Project -> ExceptT ErrorMessage IO [Post]
@@ -233,13 +233,13 @@ copyCopyDir project = liftIO $ do
 buildProjectImpl :: Project -> [Processor] -> [Post] -> ExceptT ErrorMessage IO ()
 buildProjectImpl project processors postsInProject = do
   -- apply all preprocessors to the posts
-  processedPosts <- preprocessPosts processors postsInProject >>= addPostListToMeta project
+  processedPosts <- preprocessPosts processors postsInProject >>= addPostListToPostData project
   -- Convert markdown posts to HTML pages.
   pages <- mapM (buildPost project) processedPosts
   -- apply any post compilation processors (e.g. syntax highlighting, etc.)
   processedPages <- mapM applyHtmlProcessors pages
   -- write the processed pages to disk
-  mapM_ writeHtmlPage processedPages
+  mapM_ (liftIO . writeHtmlPage) processedPages
   -- copy assets directory to the output directory
   copyAssets project
   -- copy the copy directory to the output directory
@@ -251,32 +251,31 @@ buildProjectImpl project processors postsInProject = do
     preprocessPosts :: [Processor] -> [Post] -> ExceptT ErrorMessage IO [Post]
     preprocessPosts [] posts = return posts
     preprocessPosts _ [] = return []
-    preprocessPosts (f:fs) posts = do
+    preprocessPosts (f : fs) posts = do
       posts' <- mapM (preprocess f posts) posts
       preprocessPosts fs posts'
 
     preprocess :: Processor -> [Post] -> Post -> ExceptT ErrorMessage IO Post
-    preprocess (OnPost f) allPosts post  = f project allPosts post
+    preprocess (OnPost f) allPosts post = f project allPosts post
     preprocess _ _ post = return post
 
     applyHtmlProcessor :: HTMLPage -> Processor -> ExceptT ErrorMessage IO HTMLPage
     applyHtmlProcessor page (OnHTML f) = f project page
     applyHtmlProcessor page _ = return page
 
-addPostListToMeta :: Project -> [Post] -> ExceptT ErrorMessage IO [Post]
-addPostListToMeta (Project {projectOutDir = outDir}) posts' = do
-  -- Every post has an additional data field called `posts`.
+-- | Add a list of posts to the build time data of each post.
+addPostListToPostData :: Project -> [Post] -> ExceptT ErrorMessage IO [Post]
+addPostListToPostData _ posts' = do
+  -- Every gets has an additional data field called `posts`.
   -- It is an array of all posts in the project.
   let allPosts = Mustache.Array $ Vector.fromList $ map getPostData posts'
-      posts = map (\p -> p {postOtherData = ("posts", allPosts) : postOtherData p}) posts'
+      posts = map (\p -> p {postData = HM.insert "posts" allPosts (postData p)}) posts'
   return posts
   where
     getPostData :: Post -> Mustache.Value
     getPostData post =
       let meta = Mustache.Object $ fmMetaData $ postFrontMatter post
-          relativeUrl = makeRelative outDir (postDstPath post)
-          dstPath = Mustache.String $ T.pack relativeUrl
-       in Mustache.Object $ HM.fromList $ [("meta", meta), ("dstPath", dstPath)] ++ postOtherData post
+       in Mustache.Object $ HM.insert "meta" meta (postData post)
 
 -- | Build a bark project using the given list of processors.
 buildProject :: Project -> [Processor] -> ExceptT ErrorMessage IO ()

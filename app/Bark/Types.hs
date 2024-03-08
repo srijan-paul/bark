@@ -22,8 +22,8 @@ import Bark.FrontMatter (PostFrontMatter (..))
 import Control.Monad.Except (ExceptT)
 import Data.Aeson.Types (typeMismatch, (.:))
 import qualified Data.Text as T
-import qualified Data.Yaml as Yml
 import qualified Data.Vector as Vector
+import qualified Data.Yaml as Yml
 import Text.Mustache.Types as Mustache
 
 type ErrorMessage = String
@@ -94,7 +94,7 @@ data Post = Post
     --
     -- In addition to these, posts can be modified to have their own data fields.
     -- For example, a **website_url** field that stores the URL where the site containing all pages is hosted.
-    postOtherData :: [(T.Text, Mustache.Value)]
+    postData :: Mustache.Object
   }
   deriving (Show)
 
@@ -114,13 +114,17 @@ data HTMLPage = HTMLPage
     htmlPageContent :: T.Text
   }
 
+-- | A function that modifies a post before it is converted to HTML.
 type Preprocessor = Project -> [Post] -> Post -> ExceptT ErrorMessage IO Post
+
+-- | A function that modifies an HTML page before it is written to disk.
 type Postprocessor = Project -> HTMLPage -> ExceptT ErrorMessage IO HTMLPage
 
 -- | Modifies an asset file in the project before it is written to disk.
 -- Useful for minifying, compressing, or otherwise modifying assets.
 type AssetProcessor = Project -> AssetFile -> ExceptT ErrorMessage IO AssetFile
 
+-- | Modifies a post, HTML page, or asset file before its written to disk.
 data Processor
   = OnPost Preprocessor
   | OnHTML Postprocessor
