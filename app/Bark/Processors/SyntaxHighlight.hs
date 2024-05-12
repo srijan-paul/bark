@@ -1,8 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Bark.Processors.SyntaxHighlight (highlightSnippets) where
+module Bark.Processors.SyntaxHighlight (highlightPlugin) where
 
-import Bark.Types (HTMLPage (..), Postprocessor)
+import Bark.Types (Compilation (compilationPages), ErrorMessage, HTMLPage (..), Plugin (..))
+import Control.Arrow (ArrowChoice (right))
+import Control.Monad.Error.Class (liftEither)
+import Control.Monad.State (MonadState (get, put))
 import qualified Data.List as List
 import Data.Map ((!))
 import qualified Data.Maybe as M
@@ -47,23 +50,31 @@ highlightBlock attrs code =
 
 -- | Highlight all code present inside code tags that are nested in pre tags.
 -- | This will highlight all occurrences of the pattern <pre> <code> "foo" </code></pre>
-highLightAST :: [H.Tag T.Text] -> [H.Tag T.Text]
+highLightAST :: [H.Tag T.Text] -> Either ErrorMessage [H.Tag T.Text]
 highLightAST = go
   where
-    go :: [H.Tag T.Text] -> [H.Tag T.Text]
+    go :: [H.Tag T.Text] -> Either ErrorMessage [H.Tag T.Text]
     -- <pre> <code> txt ...
     go (H.TagOpen "pre" _ : open@(H.TagOpen "code" attrs) : (H.TagText txt) : rest) =
       case highlightBlock attrs txt of
-        Left foo -> error foo
-        Right tags -> (open : tags) ++ go rest
-    go (x : other) = x : go other
-    go [] = []
+        Left msg -> Left msg
+        Right tags -> ((open : tags) ++) <$> go rest
+    go (x : other) = (x :) <$> go other
+    go [] = Right []
 
-highlightSnippets' :: T.Text -> T.Text
-highlightSnippets' = H.renderTags . highLightAST . H.parseTags
+highlightSnippets' :: T.Text -> Either ErrorMessage T.Text
+highlightSnippets' = fmap H.renderTags . highLightAST . H.parseTags
 
 -- | Syntax highlight all <code> snippets in the AST.
-highlightSnippets :: Postprocessor
-highlightSnippets _ page@(HTMLPage _ html) = do
-  let highlightedHTML = highlightSnippets' html
-   in return $ page {htmlPageContent = highlightedHTML}
+highlightSnippets :: HTMLPage -> Either ErrorMessage HTMLPage
+highlightSnippets page@(HTMLPage _ html) = do
+  right (\newHtml -> page {htmlPageContent = newHtml}) (highlightSnippets' html)
+
+highlightPlugin :: Plugin
+highlightPlugin = AfterBuild $ do
+  compilation <- get
+  let pages = mapM highlightSnippets (compilationPages compilation)
+  case pages of
+    Left message -> liftEither $ Left message
+    Right newPages -> put compilation {compilationPages = newPages}
+

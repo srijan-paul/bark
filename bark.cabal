@@ -68,7 +68,6 @@ executable bark
         Bark.Core,
         Bark.CLI
     -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
     build-depends:
         base,
         text,

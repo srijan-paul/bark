@@ -7,19 +7,21 @@ module Bark.Types
     Post (..),
     HTMLPage (..),
     PostFrontMatter (..),
-    Processor (..),
-    Preprocessor,
-    Postprocessor,
-    AssetProcessor,
+    Processor,
     ErrorMessage,
     AssetFile (..),
+    Plugin (..),
     fromList,
+    Compilation (..),
+    newCompilation,
+    processorOfPlugin,
     module Mustache,
   )
 where
 
 import Bark.FrontMatter (PostFrontMatter (..))
 import Control.Monad.Except (ExceptT)
+import Control.Monad.State (State, StateT)
 import Data.Aeson.Types (typeMismatch, (.:))
 import qualified Data.Text as T
 import qualified Data.Vector as Vector
@@ -103,7 +105,7 @@ data AssetFile = AssetFile
   { assetFilePath :: FilePath,
     assetDstPath :: FilePath,
     assetProject :: Project,
-    assetContent :: T.Text
+    assetContent :: Maybe T.Text
   }
 
 -- | An compiled HTML page that will be written to disk.
@@ -114,18 +116,21 @@ data HTMLPage = HTMLPage
     htmlPageContent :: T.Text
   }
 
--- | A function that modifies a post before it is converted to HTML.
-type Preprocessor = Project -> [Post] -> Post -> ExceptT ErrorMessage IO Post
+data Compilation = Compilation
+  { compilationProject :: Project,
+    compilationPosts :: [Post],
+    compilationPages :: [HTMLPage]
+  }
 
--- | A function that modifies an HTML page before it is written to disk.
-type Postprocessor = Project -> HTMLPage -> ExceptT ErrorMessage IO HTMLPage
+newCompilation :: Project -> [Post] -> [HTMLPage] -> Compilation
+newCompilation = Compilation
 
--- | Modifies an asset file in the project before it is written to disk.
--- Useful for minifying, compressing, or otherwise modifying assets.
-type AssetProcessor = Project -> AssetFile -> ExceptT ErrorMessage IO AssetFile
+type Processor a = StateT Compilation (ExceptT ErrorMessage IO) a
 
--- | Modifies a post, HTML page, or asset file before its written to disk.
-data Processor
-  = OnPost Preprocessor
-  | OnHTML Postprocessor
-  | OnAsset AssetProcessor
+data Plugin
+  = BeforeBuild (Processor ())
+  | AfterBuild (Processor ())
+
+processorOfPlugin :: Plugin -> Processor ()
+processorOfPlugin (BeforeBuild p) = p
+processorOfPlugin (AfterBuild p) = p

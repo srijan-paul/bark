@@ -22,11 +22,15 @@ where
 import Bark.FrontMatter (PostFrontMatter (..), parseFrontMatter)
 import Bark.Internal.IOUtil (ErrorMessage, copyDirectory, tryReadFileBS, tryReadFileT)
 import Bark.Types
-  ( HTMLPage (..),
+  ( Compilation (..),
+    HTMLPage (..),
+    Plugin (..),
     Post (..),
-    Processor (..),
+    Processor,
     Project (..),
     ProjectConfig (..),
+    newCompilation,
+    processorOfPlugin,
   )
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
@@ -35,6 +39,7 @@ import Control.Concurrent (threadDelay)
 import Control.Monad (forever, unless)
 import Control.Monad.Except (ExceptT, MonadIO (liftIO), foldM, liftEither, runExceptT, when)
 import Control.Monad.Identity (Identity (runIdentity))
+import Control.Monad.State (execStateT)
 import Data.Bifunctor (Bifunctor (bimap))
 import qualified Data.Char as Char
 import qualified Data.HashMap.Strict as HM
@@ -230,38 +235,38 @@ copyCopyDir project = liftIO $ do
     copyDir = projectCopyDir project
     outDir = projectOutDir project
 
-buildProjectImpl :: Project -> [Processor] -> [Post] -> ExceptT ErrorMessage IO ()
-buildProjectImpl project processors postsInProject = do
-  -- apply all preprocessors to the posts
-  processedPosts <- preprocessPosts processors postsInProject >>= addPostListToPostData project
+buildProjectImpl :: Project -> [Plugin] -> [Post] -> ExceptT ErrorMessage IO ()
+buildProjectImpl project plugins posts = do
+  -- apply all the pre-processors that modify posts *before* they are compiled.
+  compilation <- foldM applyProcessor (newCompilation project posts []) preprocessors
+  let processedProject = compilationProject compilation
+      processedPosts = compilationPosts compilation
+  
+  -- add a "posts" field to the build time data of every post.
+  modifiedPosts <- addPostListToPostData processedProject processedPosts
   -- Convert markdown posts to HTML pages.
-  pages <- mapM (buildPost project) processedPosts
-  -- apply any post compilation processors (e.g. syntax highlighting, etc.)
-  processedPages <- mapM applyHtmlProcessors pages
-  -- write the processed pages to disk
+  pages <- mapM (buildPost project) modifiedPosts
+  -- Apply all the post-processors that modify HTML pages after they're built.
+  let htmlCompilation = compilation {compilationPages = pages}
+  finalCompilation <- foldM applyProcessor htmlCompilation postprocessors
+
+  -- collect all the modified HTML pages, then write to disk
+  let processedPages = compilationPages finalCompilation
   mapM_ (liftIO . writeHtmlPage) processedPages
-  -- copy assets directory to the output directory
+
   copyAssets project
-  -- copy the copy directory to the output directory
   copyCopyDir project
   where
-    applyHtmlProcessors :: HTMLPage -> ExceptT ErrorMessage IO HTMLPage
-    applyHtmlProcessors page = foldM applyHtmlProcessor page processors
+    -- \| returns true if a plugin should be applied *before* a project has been compiled.
+    isPrePlugin :: Plugin -> Bool
+    isPrePlugin (BeforeBuild _) = True
+    isPrePlugin _ = False
 
-    preprocessPosts :: [Processor] -> [Post] -> ExceptT ErrorMessage IO [Post]
-    preprocessPosts [] posts = return posts
-    preprocessPosts _ [] = return []
-    preprocessPosts (f : fs) posts = do
-      posts' <- mapM (preprocess f posts) posts
-      preprocessPosts fs posts'
+    preprocessors = processorOfPlugin <$> filter isPrePlugin plugins
+    postprocessors = processorOfPlugin <$> filter (not . isPrePlugin) plugins
 
-    preprocess :: Processor -> [Post] -> Post -> ExceptT ErrorMessage IO Post
-    preprocess (OnPost f) allPosts post = f project allPosts post
-    preprocess _ _ post = return post
-
-    applyHtmlProcessor :: HTMLPage -> Processor -> ExceptT ErrorMessage IO HTMLPage
-    applyHtmlProcessor page (OnHTML f) = f project page
-    applyHtmlProcessor page _ = return page
+    applyProcessor :: Compilation -> Processor () -> ExceptT ErrorMessage IO Compilation
+    applyProcessor = flip execStateT
 
 -- | Add a list of posts to the build time data of each post.
 addPostListToPostData :: Project -> [Post] -> ExceptT ErrorMessage IO [Post]
@@ -277,11 +282,11 @@ addPostListToPostData _ posts' = do
       let meta = Mustache.Object $ fmMetaData $ postFrontMatter post
        in Mustache.Object $ HM.insert "meta" meta (postData post)
 
--- | Build a bark project using the given list of processors.
-buildProject :: Project -> [Processor] -> ExceptT ErrorMessage IO ()
-buildProject project processors = do
+-- | Build a bark project using the given list of plugins.
+buildProject :: Project -> [Plugin] -> ExceptT ErrorMessage IO ()
+buildProject project plugins = do
   posts <- getPosts project
-  buildProjectImpl project processors posts
+  buildProjectImpl project plugins posts
 
 printWatchMessage :: T.Text -> T.Text -> IO ()
 printWatchMessage time filePath = do
@@ -314,8 +319,8 @@ printErrorMessage errorMessage = do
         ]
    in putStrLn $ T.unpack (Color.renderChunksText Color.With8Colours message)
 
-watchProjectWith :: [Processor] -> Project -> IO ()
-watchProjectWith processors project = FS.withManager $ \mgr -> do
+watchProjectWith :: [Plugin] -> Project -> IO ()
+watchProjectWith plugins project = FS.withManager $ \mgr -> do
   _ <- FS.watchTree mgr sourceDir filterEvent callback
   _ <- FS.watchTree mgr assetsDir filterEvent callback
   _ <- FS.watchTree mgr templateDir filterEvent callback
@@ -334,7 +339,7 @@ watchProjectWith processors project = FS.withManager $ \mgr -> do
     filterEvent _ = False
 
     callback event = do
-      result <- runExceptT $ buildProject project processors
+      result <- runExceptT $ buildProject project plugins
       let path = normalise $ FS.eventPath event
           relPath = makeRelative (projectRoot project) path
           time = T.pack $ show $ FS.eventTime event

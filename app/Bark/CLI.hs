@@ -6,7 +6,7 @@ module Bark.CLI
     Command (..),
     BarkCLI (..),
     defaultCLI,
-    builtinProcessors,
+    builtinPlugins,
   )
 where
 
@@ -19,8 +19,8 @@ import Bark.Core
     watchProjectWith,
     buildProject,
   )
-import Bark.Processors.SyntaxHighlight (highlightSnippets)
-import Bark.Types (Processor (..))
+import Bark.Processors.SyntaxHighlight (highlightPlugin)
+import Bark.Types (Plugin (..))
 import Control.Monad.Except (runExceptT)
 import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
@@ -31,14 +31,14 @@ safeHead [] = Nothing
 safeHead (x : _) = Just x
 
 newtype BarkCLI = BarkCLI
-  { barkCliProcessors :: [Processor]
+  { barkCliPlugins :: [Plugin]
   }
 
-builtinProcessors :: [Processor]
-builtinProcessors = [OnHTML highlightSnippets]
+builtinPlugins :: [Plugin]
+builtinPlugins = [highlightPlugin]
 
 defaultCLI :: BarkCLI
-defaultCLI = BarkCLI builtinProcessors
+defaultCLI = BarkCLI builtinPlugins
 
 data Command
   = Build FilePath
@@ -56,16 +56,16 @@ getProject path = do
     Right p -> return p
 
 doCommand :: BarkCLI -> Command -> IO ()
-doCommand (BarkCLI processors) (Build path) = do
+doCommand (BarkCLI plugins) (Build path) = do
   project <- getProject path
-  result <- runExceptT $ buildProject project processors
+  result <- runExceptT $ buildProject project plugins
   case result of
     Left err -> printErrorMessage $ T.pack $ "Build failed: " ++ err
     Right _ -> printInfoMessage "Built project"
-doCommand (BarkCLI processors) (Watch path) = do
+doCommand (BarkCLI plugins) (Watch path) = do
   printInfoMessage $ "Watching " <> T.pack path <> "..."
   project <- getProject path
-  watchProjectWith processors project
+  watchProjectWith plugins project
 doCommand _ (Init path) = do
   result <- runExceptT $ initProject path
   case result of
