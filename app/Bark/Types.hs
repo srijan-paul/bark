@@ -16,12 +16,14 @@ module Bark.Types
     newCompilation,
     processorOfPlugin,
     module Mustache,
+    module Control.Monad.State,
+    module Control.Monad.Except
   )
 where
 
 import Bark.FrontMatter (PostFrontMatter (..))
-import Control.Monad.Except (ExceptT)
-import Control.Monad.State (State, StateT)
+import Control.Monad.Except
+import Control.Monad.State
 import Data.Aeson.Types (typeMismatch, (.:))
 import qualified Data.Text as T
 import qualified Data.Vector as Vector
