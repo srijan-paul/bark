@@ -67,7 +67,7 @@ highlightSnippets' = fmap H.renderTags . highLightAST . H.parseTags
 
 -- | Syntax highlight all <code> snippets in the AST.
 highlightSnippets :: HTMLPage -> Either ErrorMessage HTMLPage
-highlightSnippets page@(HTMLPage _ html) = do
+highlightSnippets page@(HTMLPage _ html _) = do
   right (\newHtml -> page {htmlPageContent = newHtml}) (highlightSnippets' html)
 
 highlightPlugin :: Plugin
@@ -77,4 +77,3 @@ highlightPlugin = AfterBuild $ do
   case pages of
     Left message -> liftEither $ Left message
     Right newPages -> put compilation {compilationPages = newPages}
-

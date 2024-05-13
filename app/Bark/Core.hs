@@ -16,6 +16,9 @@ module Bark.Core
     printErrorMessage,
     printInfoMessage,
     urlFromMdPath,
+    template2Html,
+    templateFromPath,
+    module System.FilePath,
   )
 where
 
@@ -29,6 +32,7 @@ import Bark.Types
     Processor,
     Project (..),
     ProjectConfig (..),
+    htmlFromPost,
     newCompilation,
     processorOfPlugin,
   )
@@ -66,6 +70,10 @@ import System.FilePath
 import qualified Text.Colour as Color
 import qualified Text.Mustache as Mustache
 import qualified Text.Mustache.Types as Mustache
+
+safeLast :: [a] -> Maybe a
+safeLast [] = Nothing
+safeLast xs = Just $ last xs
 
 defaultConfig :: T.Text
 defaultConfig =
@@ -179,13 +187,25 @@ postToHtml Post {postPath = path, postContent = content} =
     path
     (stripFrontMatter content)
 
+-- | Load a mustache template from a file path.
+templateFromPath :: FilePath -> ExceptT ErrorMessage IO Mustache.Template
+templateFromPath path = do
+  templateContent <- tryReadFileT path
+  let template = Mustache.compileTemplate path templateContent
+  liftEither $ left show template
+
 loadTemplate :: Project -> Post -> ExceptT ErrorMessage IO Mustache.Template
 loadTemplate project post = do
   let templateName = T.unpack $ fmTemplate (postFrontMatter post)
       templatePath = projectTemplateDir project </> templateName ++ ".mustache"
-  templateContent <- tryReadFileT templatePath
-  let template = Mustache.compileTemplate templatePath templateContent
-  liftEither $ left show template
+  templateFromPath templatePath
+
+-- | Convert a mustache template to HTML text by substituting the given data.
+template2Html :: FilePath -> Mustache.Value -> ExceptT ErrorMessage IO T.Text
+template2Html templatePath data' = do
+  template <- templateFromPath templatePath
+  let output = Mustache.substitute template data'
+  return output
 
 buildPost :: Project -> Post -> ExceptT ErrorMessage IO HTMLPage
 buildPost project post = do
@@ -200,11 +220,10 @@ buildPost project post = do
             ]
             <> postData post
       output = Mustache.substitute template buildData
-  return $ HTMLPage post output
+  return $ htmlFromPost post output
 
 writeHtmlPage :: HTMLPage -> IO ()
-writeHtmlPage (HTMLPage post content) = do
-  let outPath = postDstPath post
+writeHtmlPage (HTMLPage _ content outPath) = do
   createDirectoryIfMissing True $ takeDirectory outPath
   TIO.writeFile outPath content
 
@@ -241,7 +260,7 @@ buildProjectImpl project plugins posts = do
   compilation <- foldM applyProcessor (newCompilation project posts []) preprocessors
   let processedProject = compilationProject compilation
       processedPosts = compilationPosts compilation
-  
+
   -- add a "posts" field to the build time data of every post.
   modifiedPosts <- addPostListToPostData processedProject processedPosts
   -- Convert markdown posts to HTML pages.
@@ -333,18 +352,21 @@ watchProjectWith plugins project = FS.withManager $ \mgr -> do
     copyDir = projectCopyDir project
 
     filterEvent :: FS.Event -> Bool
-    filterEvent (FS.Modified {}) = True
+    filterEvent (FS.Modified filePath _ _) =
+      -- ignore file paths ending in "~", they're usually temporary files made by editors and such.
+      safeLast filePath /= Just '~'
     filterEvent (FS.Added {}) = True
     filterEvent (FS.Removed {}) = True
     filterEvent _ = False
 
     callback event = do
-      result <- runExceptT $ buildProject project plugins
       let path = normalise $ FS.eventPath event
           relPath = makeRelative (projectRoot project) path
           time = T.pack $ show $ FS.eventTime event
           isInBuildDir = projectOutDir project `isPrefixOf` path
+
       unless isInBuildDir $ do
+        result <- runExceptT $ buildProject project plugins
         case result of
           Left errorMessage -> printErrorMessage (T.pack errorMessage)
-          Right _ -> printWatchMessage time (T.pack relPath)
+          Right () -> printWatchMessage time (T.pack relPath)

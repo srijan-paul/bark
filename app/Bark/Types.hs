@@ -12,12 +12,14 @@ module Bark.Types
     AssetFile (..),
     Plugin (..),
     fromList,
+    toList,
     Compilation (..),
     newCompilation,
     processorOfPlugin,
+    htmlFromPost,
     module Mustache,
     module Control.Monad.State,
-    module Control.Monad.Except
+    module Control.Monad.Except,
   )
 where
 
@@ -35,6 +37,10 @@ type ErrorMessage = String
 --- | Converts a list of values to an array.
 fromList :: [Mustache.Value] -> Mustache.Value
 fromList = Mustache.Array . Vector.fromList
+
+-- | Converts a Mustache value to a list.
+toList :: Mustache.Array -> [Mustache.Value]
+toList = Vector.toList
 
 -- | Represents a Bark project.
 --  Contains absolute paths to various directories.
@@ -113,10 +119,15 @@ data AssetFile = AssetFile
 -- | An compiled HTML page that will be written to disk.
 data HTMLPage = HTMLPage
   { -- | The markdown Post from which this HTML page was generated.
-    htmlPagePost :: Post,
+    htmlPagePost :: Maybe Post,
     -- | The HTML content of the page.
-    htmlPageContent :: T.Text
-  }
+    htmlPageContent :: T.Text,
+    -- | The (absolute) output path of this HTML page.
+    htmlPagePath :: FilePath
+  } deriving (Show)
+
+htmlFromPost :: Post -> T.Text -> HTMLPage
+htmlFromPost p content = HTMLPage (Just p) content (postDstPath p)
 
 data Compilation = Compilation
   { compilationProject :: Project,
