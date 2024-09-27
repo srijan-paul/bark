@@ -39,12 +39,13 @@ import Bark.Types
 import Commonmark (Html, ParseError, commonmarkWith, defaultSyntaxSpec, renderHtml)
 import Commonmark.Extensions (gfmExtensions)
 import Control.Arrow (ArrowChoice (left))
-import Control.Concurrent (threadDelay)
+import Control.Concurrent (forkIO, threadDelay)
 import Control.Monad (forever, unless)
 import Control.Monad.Except (ExceptT, MonadIO (liftIO), foldM, liftEither, runExceptT, when)
 import Control.Monad.Identity (Identity (runIdentity))
 import Control.Monad.State (execStateT)
 import Data.Bifunctor (Bifunctor (bimap))
+import qualified Data.ByteString.Char8 as Char8 
 import qualified Data.Char as Char
 import qualified Data.HashMap.Strict as HM
 import Data.List (findIndex, isPrefixOf)
@@ -54,6 +55,10 @@ import qualified Data.Text.IO as TIO
 import qualified Data.Text.Lazy as TL
 import qualified Data.Vector as Vector
 import Data.Yaml (decodeFileEither, prettyPrintParseException)
+import qualified Network.HTTP.Types as Http
+import qualified Network.Wai as Wai
+import qualified Network.Wai.Application.Static as Wai
+import qualified Network.Wai.Handler.Warp as Warp
 import System.Directory (createDirectoryIfMissing, doesDirectoryExist, makeAbsolute)
 import System.Directory.Recursive (getFilesRecursive)
 import qualified System.FSNotify as FS
@@ -338,12 +343,30 @@ printErrorMessage errorMessage = do
         ]
    in putStrLn $ T.unpack (Color.renderChunksText Color.With8Colours message)
 
+redirectDirectoryToIndex :: Wai.Middleware
+redirectDirectoryToIndex app req sendResp =
+  let path = Wai.rawPathInfo req
+   in if Char8.last path == '/'
+        then
+          sendResp $
+            Wai.responseLBS
+              Http.status301
+              [("Location", path <> "index.html")]
+              ""
+        else app req sendResp
+
 watchProjectWith :: [Plugin] -> Project -> IO ()
 watchProjectWith plugins project = FS.withManager $ \mgr -> do
   _ <- FS.watchTree mgr sourceDir filterEvent callback
   _ <- FS.watchTree mgr assetsDir filterEvent callback
   _ <- FS.watchTree mgr templateDir filterEvent callback
   _ <- FS.watchTree mgr copyDir filterEvent callback
+
+  let serveSettings = Wai.defaultWebAppSettings (projectOutDir project)
+  let app = redirectDirectoryToIndex (Wai.staticApp serveSettings)
+  -- TODO: allow user to set the port.
+  _ <- forkIO $ Warp.run 8080 app
+  printInfoMessage "Listening on port :8080"
   forever $ threadDelay 1_000_000
   where
     sourceDir = projectSourceDir project

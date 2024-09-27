@@ -45,7 +45,11 @@ library
         bytestring,
         yaml,
         aeson,
-        safe-coloured-text
+        safe-coloured-text,
+        http-types,
+        wai,
+        wai-app-static,
+        warp
     
     other-modules:
         Bark.Internal.IOUtil,
@@ -91,7 +95,11 @@ executable bark
         pretty-simple,
         bark:bark,
         aeson,
-        safe-coloured-text
+        safe-coloured-text,
+        http-types,
+        wai,
+        wai-app-static,
+        warp
 
     ghc-options:
         -Wall
