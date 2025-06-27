@@ -1,19 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="/assets/css/style.css">
-  <link rel="stylesheet" href="/assets/css/syntax.css">
-  <title>{{meta.title}}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{meta.title}}</title>
+    <meta name="description" content="{{meta.description}}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400;1,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/syntax.css">
 </head>
-
 <body>
-  <div class="main">
-    {{&content}}
-  </div>
-</body>
+    <div class="container">
+        <nav class="sidebar">
+            <div class="sidebar-content">
+                <h1 class="site-title"><a href="/">Bark</a></h1>
+                <p class="site-subtitle">Static Site Generator</p>
+                
+                <div class="nav-section">
+                    <h3>Getting Started</h3>
+                    <ul>
+                        <li><a href="#installation">Installation</a></li>
+                        <li><a href="#quick-start">Quick Start</a></li>
+                        <li><a href="#project-structure">Project Structure</a></li>
+                        <li><a href="#configuration">Configuration</a></li>
+                    </ul>
+                </div>
 
+                <div class="nav-section">
+                    <h3>Content</h3>
+                    <ul>
+                        <li><a href="#writing-content">Writing Content</a></li>
+                        <li><a href="#templates">Templates</a></li>
+                        <li><a href="#assets-and-static-files">Assets & Static Files</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <h3>Plugins</h3>
+                    <ul>
+                        <li><a href="#plugins">Overview</a></li>
+                        <li><a href="#pre-processor-plugin">Pre-processors</a></li>
+                        <li><a href="#post-processor-plugin">Post-processors</a></li>
+                        <li><a href="#complex-plugin-example">Complex Examples</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <h3>Advanced</h3>
+                    <ul>
+                        <li><a href="#custom-binary">Custom Binary</a></li>
+                        <li><a href="#library-usage">Library Usage</a></li>
+                        <li><a href="#built-in-features">Built-in Features</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <h3>Reference</h3>
+                    <ul>
+                        <li><a href="#commands">Commands</a></li>
+                        <li><a href="#examples">Examples</a></li>
+                        <li><a href="#troubleshooting">Troubleshooting</a></li>
+                        <li><a href="#contributing">Contributing</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <main class="content">
+            <div class="content-wrapper">
+                {{{content}}}
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight current section in navigation
+        function updateActiveNav() {
+            const sections = document.querySelectorAll('h2[id], h3[id]');
+            const navLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+            
+            let current = '';
+            const scrollPos = window.scrollY + 100;
+
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollPos >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', updateActiveNav);
+        updateActiveNav();
+    </script>
+</body>
 </html>

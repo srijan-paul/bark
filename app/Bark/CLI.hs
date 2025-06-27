@@ -7,6 +7,8 @@ module Bark.CLI
     BarkCLI (..),
     defaultCLI,
     builtinPlugins,
+    showHelp,
+    showUsage,
   )
 where
 
@@ -75,13 +77,39 @@ doCommand _ (Init path) = do
     Left err -> printErrorMessage $ T.pack $ "Failed to initialize project: " ++ err
     Right _ -> printInfoMessage "Project initialized successfully."
 
+-- | Show help information.
+showHelp :: IO ()
+showHelp = do
+  putStrLn "Bark - Static Site Generator"
+  putStrLn ""
+  putStrLn "Usage:"
+  putStrLn "  bark init [path]   Create a new project (default: current directory)"
+  putStrLn "  bark build [path]  Build the site (default: current directory)"
+  putStrLn "  bark watch [path]  Build and watch for changes (default: current directory)"
+  putStrLn "  bark -h, --help    Show this help"
+  putStrLn ""
+  putStrLn "Examples:"
+  putStrLn "  bark init my-site  # Create new project in ./my-site"
+  putStrLn "  bark build         # Build current directory"
+  putStrLn "  bark watch         # Watch current directory and serve on :8080"
+
+-- | Show usage when no command is provided.
+showUsage :: IO ()
+showUsage = do
+  putStrLn "Usage: bark <command> [path]"
+  putStrLn "Run 'bark -h' for more information."
+
 -- | Parse command line arguments into a Command.
 parseCommand :: [String] -> Maybe Command
 parseCommand [] = Nothing
+parseCommand ["-h"] = Nothing  -- Will be handled in main
+parseCommand ["--help"] = Nothing  -- Will be handled in main
 parseCommand (cmd:args) = do
   let path = fromMaybe "." (safeHead args)
   case cmd of
     "build" -> Just (Build path)
     "watch" -> Just (Watch path)
     "init" -> Just (Init path)
+    "-h" -> Nothing
+    "--help" -> Nothing
     _ -> Nothing

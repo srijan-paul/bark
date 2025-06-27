@@ -1,124 +1,530 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="css/style.css">
-  <link rel="stylesheet" href="css/syntax.css">
-  <!--<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/styles/default.min.css">-->
-  <!--<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.3.1/highlight.min.js"></script>-->
-  <title>Bark - SSG in Haskell</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bark - Static Site Generator</title>
+    <meta name="description" content="A static site generator written in Haskell">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;1,400;1,600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <link rel="stylesheet" href="/assets/css/syntax.css">
 </head>
-
 <body>
-  <div class="main">
-    Date: 17th Dec 2021
-    <h1 id="bark">Bark</h1>
-<p>Bark is a static site generator written in Haskell, targeting ease of use.</p>
-<p>If you have any experience with Hugo, 11ty or Jekyll then using Bark should be a cakewalk.</p>
+    <div class="container">
+        <nav class="sidebar">
+            <div class="sidebar-content">
+                <h1 class="site-title"><a href="/">Bark</a></h1>
+                <p class="site-subtitle">Static Site Generator</p>
+                
+                <div class="nav-section">
+                    <h3>Getting Started</h3>
+                    <ul>
+                        <li><a href="#installation">Installation</a></li>
+                        <li><a href="#quick-start">Quick Start</a></li>
+                        <li><a href="#project-structure">Project Structure</a></li>
+                        <li><a href="#configuration">Configuration</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <h3>Content</h3>
+                    <ul>
+                        <li><a href="#writing-content">Writing Content</a></li>
+                        <li><a href="#templates">Templates</a></li>
+                        <li><a href="#assets-and-static-files">Assets &amp; Static Files</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <h3>Plugins</h3>
+                    <ul>
+                        <li><a href="#plugins">Overview</a></li>
+                        <li><a href="#pre-processor-plugin">Pre-processors</a></li>
+                        <li><a href="#post-processor-plugin">Post-processors</a></li>
+                        <li><a href="#complex-plugin-example">Complex Examples</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <h3>Advanced</h3>
+                    <ul>
+                        <li><a href="#custom-binary">Custom Binary</a></li>
+                        <li><a href="#library-usage">Library Usage</a></li>
+                        <li><a href="#built-in-features">Built-in Features</a></li>
+                    </ul>
+                </div>
+
+                <div class="nav-section">
+                    <h3>Reference</h3>
+                    <ul>
+                        <li><a href="#commands">Commands</a></li>
+                        <li><a href="#examples">Examples</a></li>
+                        <li><a href="#troubleshooting">Troubleshooting</a></li>
+                        <li><a href="#contributing">Contributing</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <main class="content">
+            <div class="content-wrapper">
+                <h1 id="bark">Bark</h1>
+<p>A static site generator written in Haskell. Based on Markdown + Mustache + YAML frontmatter.
+Bark has all the features you expect out of a static site generator, which is to say:</p>
+<ul>
+<li>Markdown support with YAML frontmatter.
+</li>
+<li>Mustache templates for HTML generation.
+</li>
+<li>Static assets like CSS, JS, and images.
+</li>
+<li>Incremental builds with live reload.
+</li>
+<li>Custom plugins for extending functionality.
+</li>
+<li>Zero JS Syntax highlighting for code blocks.
+</li>
+<li>Clean URLs based on file structure.
+</li>
+</ul>
 <h2 id="installation">Installation</h2>
-<p>Since bark is in it&#39;s experimental stages, the only way to get it currently is to
-compile it from source. The source tree can be found <a href="https://github.com/srijan-paul/bark">here</a> on GitHub. Just clone the repo and run the <code>build.sh</code> script to compile.
-When finished, you should see an executable in <code>dist/bark</code>.</p>
-<p>Once it&#39;s more stable, bark will be released on hackage.</p>
-<h2 id="usage">Usage</h2>
-<p>Using bark is as simple as it gets.</p>
-<h3 id="one-time-setup">One time setup</h3>
-<p>You&#39;ll need <a href="https://www.haskell.org/cabal/">cabal</a> and <a href="https://www.haskell.org/ghc/">ghc</a> installed to
-install bark. Once you&#39;ve made sure you have them installed, clone the GitHub repository and run this command:</p>
-<code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> cabal install exe:bark <span class="at">--overwrite-policy</span><span class="op">=</span>always</span></code></pre></div></code></pre>
-<p>Let&#39;s do a quick sanity check to ensure all&#39;s good.
-If you get something similar to what&#39;s shown below when you enter <code>bark</code> into the command line, then we&#39;re all set!</p>
-<code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> bark</span>
-<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="ex">Bark</span> v0.1.0. commands available:</span>
-<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="ex">build:</span> build the current project</span>
-<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="ex">watch:</span> watch the directory and build whenever changes are detected.</span></code></pre></div></code></pre>
-<h3 id="creating-projects">Creating projects</h3>
-<p>To create a new project, create an empty directory and initialize it with <code>bark init</code>.</p>
-<code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> mkdir project</span>
-<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> cd project</span>
-<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> bark init</span></code></pre></div></code></pre>
-<p>Now your directory should have this structure:</p>
-<code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="bu">.</span></span>
-<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="ex">├──</span> src</span>
-<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   ├── assets</span>
-<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   ├── content</span>
-<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a><span class="ex">│</span>   └── public</span>
-<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a><span class="ex">└──</span> template</span></code></pre></div></code></pre>
-<h3 id="adding-new-posts">Adding new posts</h3>
-<p>To add a new post, you&#39;ll have to create two new files in the <code>content</code> directory.</p>
-<code class="language-shell"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>$ touch src/content/post.md src/content/post.meta</span></code></pre></div></code></pre>
-<p>The <code>post.md</code> file contains the markdown content of our page.
-The <code>post.meta</code> file contains metadata about our post.
-The metadata is stored in a JSON-like format.</p>
-<p>Here&#39;s an example of what you could write into <code>post.md</code>:</p>
-<code class="language-markdown"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Hello, world!</span></span>
-<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>This is my first post</span></code></pre></div></code></pre>
-<p>And the corresponding metadata in a <code>post.meta</code> file:</p>
-<code class="language-javascript"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>{</span>
-<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">date</span><span class="op">:</span> <span class="st">&quot;17th December 2021&quot;</span></span>
-<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">tags</span><span class="op">:</span> [<span class="st">&quot;post&quot;</span> <span class="st">&quot;blog&quot;</span>]</span>
-<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">template</span><span class="op">:</span> <span class="st">&quot;post&quot;</span></span>
-<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">title</span><span class="op">:</span> <span class="st">&quot;My first post!&quot;</span></span>
-<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div></code></pre>
-<p>The <code>template</code> key is special, and <strong>must</strong> be present in a metadata file.
-It represents which HTML template to use when rendering the post.</p>
-<h3 id="using-templates">Using templates</h3>
-<p>A bark template is written in the <a href="https://mustache.github.io/">mustache</a> templating language.
-If you&#39;ve used HTML, then you already know most of what you need to know.
-In the mustache template, there are some prexisting variables.</p>
-<p>The <code>content</code> is a string containing the markdown content of the page, now converted to HTML.
-The other global variables correspond to the keys listed in a <code>.meta</code> file.</p>
-<p>Here is an example template, <code>post.mustache</code>:</p>
-<code class="language-html"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="kw">&lt;html&gt;</span></span>
-<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a>  <span class="kw">&lt;head&gt;</span></span>
-<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>    <span class="co">&lt;!-- This will be replaced with the `title` key in the `.meta` file.  --&gt;</span></span>
-<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">&lt;title&gt;</span>{{ title }}<span class="kw">&lt;/title&gt;</span></span>
-<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>  <span class="kw">&lt;/head&gt;</span></span>
-<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">&lt;body&gt;</span></span>
-<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">&lt;div</span> <span class="er">class</span><span class="ot">=</span><span class="st">&quot;main&quot;</span><span class="kw">&gt;</span></span>
-<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a>      <span class="co">&lt;!-- replaced by the `date` key in the `.meta` file --&gt;</span></span>
-<span id="9"><a href="#9" aria-hidden="true" tabindex="-1"></a>      Date: {{ date }} </span>
-<span id="10"><a href="#10" aria-hidden="true" tabindex="-1"></a>      <span class="co">&lt;!-- The &#39;&amp;&#39; is neccessary when plugging in HTML,</span></span>
-<span id="11"><a href="#11" aria-hidden="true" tabindex="-1"></a><span class="co">           otherwise the output will be sanitized, hence escaping the `&lt;` and `&gt;` characters --&gt;</span></span>
-<span id="12"><a href="#12" aria-hidden="true" tabindex="-1"></a>      {{<span class="er">&amp;</span>content}}</span>
-<span id="13"><a href="#13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">&lt;/div&gt;</span></span>
-<span id="14"><a href="#14" aria-hidden="true" tabindex="-1"></a>  <span class="kw">&lt;/body&gt;</span></span>
-<span id="15"><a href="#15" aria-hidden="true" tabindex="-1"></a><span class="kw">&lt;/html&gt;</span></span></code></pre></div></code></pre>
-<h3 id="building-your-project">Building your project</h3>
-<p>This is where everything comes together nicely.</p>
-<code class="language-sh"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">$</span> bark build</span></code></pre></div></code></pre>
-<p>Once you do this, you should see a <code>build</code> directory pop up in the project root.
-This directory now contains the HTML output of all our files.</p>
-<p>Running the build command again and again is tedious.
-You could make bark watch over the directory for changes using <code>bark watch</code>.</p>
-<h2 id="sample-project">Sample project.</h2>
-<p>Want a sample project as reference? How about this one?</p>
-<p>The page you&#39;re reading right now has been made with bark.
-You can find the source <a href="https://github.com/srijan-paul/bark/tree/main/site">here</a>.</p>
-<h2 id="faq">FAQ</h2>
-<p><strong>Q. How can I get syntax highlighting?</strong></p>
-<p>Same way I did on this page.
-You could use a syntax highlighting library like <a href="https://highlightjs.org/">highlight.js</a> and initialize it in a <code>&lt;script&gt;</code> tag in your template to embed it. It only takes 5 lines of code!</p>
-<p><strong>Q. How can do I get nested/grouped paths to my pages?</strong></p>
-<p>Simple! Just nest your directory structure inside <code>content</code> the way you want your URLs to turn out.
-The build directory structure mirrors the source.</p>
-<p><strong>Q. Does bark support images and other media content?</strong></p>
-<p><img src="assets/cookedcat.jpg" alt="cat-image"></img></p>
-<p><strong>Q. My question isn&#39;t listed here !</strong></p>
-<p>You can always file an <a href="https://github.com/srijan-paul/bark/issues">issue</a> to submit bugs/suggestions,
-or get in touch with me on my <a href="https://twitter.com/_injuly">twitter</a> or discord - <strong>injuly#6820</strong>.</p>
-<h2 id="thats-it">That&#39;s it!</h2>
-<p>You&#39;ve done it.</p>
-<p>You&#39;ve mastered SSGs.</p>
-<p>Now go make some beautiful webpages, unlike this one.</p>
+<p>Clone the repository and build from source:</p>
+<code class="language-bash"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/srijan-paul/bark</span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> bark</span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="ex">cabal</span> install exe:bark <span class="at">--overwrite-policy</span><span class="op">=</span>always</span></code></pre></div></code></pre>
+<h2 id="quick-start">Quick Start</h2>
+<p>Create and build your first site:</p>
+<code class="language-bash"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create a new project</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="ex">bark</span> init my-site</span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> my-site</span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a><span class="co"># Build the site</span></span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a><span class="ex">bark</span> build</span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a><span class="co"># Watch for changes and serve on localhost:8080</span></span>
+<span id="9"><a href="#9" aria-hidden="true" tabindex="-1"></a><span class="ex">bark</span> watch</span></code></pre></div></code></pre>
+<h2 id="project-structure">Project Structure</h2>
+<p>Bark organizes your site into clear, predictable directories. Each serves a specific purpose in the build process:</p>
+<code><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>my-site/</span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a>├── bark.yml          # Configuration file</span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>├── src/              # Markdown source files</span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>├── template/         # Mustache templates</span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>├── assets/           # CSS, JS, images (copied with structure preserved)</span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>├── copy/             # Files to copy directly to site root</span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a>└── build/            # Generated site (created automatically)</span></code></pre></div></code></pre>
+<p><strong>Directory purposes:</strong></p>
+<ul>
+<li><strong>src/</strong>: Your Markdown content files with YAML frontmatter
+</li>
+<li><strong>template/</strong>: Mustache templates that define your site&#39;s HTML structure
+</li>
+<li><strong>assets/</strong>: Static assets like stylesheets and images (maintains directory structure)
+</li>
+<li><strong>copy/</strong>: Files copied directly to your site&#39;s root (robots.txt, favicon.ico, etc.)
+</li>
+<li><strong>build/</strong>: Generated output directory (don&#39;t edit manually)
+</li>
+</ul>
+<h2 id="configuration">Configuration</h2>
+<p>Edit <code>bark.yml</code> to customize directory paths:</p>
+<code class="language-yaml"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span><span class="kw">:</span><span class="at"> src</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="fu">out</span><span class="kw">:</span><span class="at"> build</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="fu">assets</span><span class="kw">:</span><span class="at"> assets</span></span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="fu">template</span><span class="kw">:</span><span class="at"> template</span></span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a><span class="fu">copy</span><span class="kw">:</span><span class="at"> copy</span></span></code></pre></div></code></pre>
+<p>All paths are relative to your project root.</p>
+<h2 id="writing-content">Writing Content</h2>
+<p>Content in Bark is written in Markdown with YAML frontmatter for metadata.
+This combination gives you readable source files with structured data for templating.</p>
+<h3 id="frontmatter">Frontmatter</h3>
+<p>Every Markdown file should start with YAML frontmatter between <code>---</code> delimiters.
+This metadata controls how your content is processed and what data is available to templates:</p>
+<code class="language-markdown"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> My First Post</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="an">template:</span><span class="co"> post</span></span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> 2024-01-15</span></span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a><span class="an">tags:</span><span class="co"> [haskell, programming]</span></span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a><span class="fu"># Hello World</span></span>
+<span id="9"><a href="#9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="10"><a href="#10" aria-hidden="true" tabindex="-1"></a>This is my first post written in Markdown.</span></code></pre></div></code></pre>
+<p>The <code>template</code> field is required and tells Bark which template file to use for rendering. You can add any other fields you want and access them in templates via <code>{{meta.fieldname}}</code>.</p>
+<h3 id="url-structure">URL Structure</h3>
+<p>Bark converts your file structure to URLs automatically:</p>
+<ul>
+<li><code>src/index.md</code> → <code>/index.html</code>
+</li>
+<li><code>src/about.md</code> → <code>/about/index.html</code>
+</li>
+<li><code>src/blog/post.md</code> → <code>/blog/post/index.html</code>
+</li>
+</ul>
+<p>Files named <code>index.md</code> create clean URLs without the filename.</p>
+<h2 id="templates">Templates</h2>
+<p>Templates control how your Markdown content becomes HTML.
+Bark uses Mustache templates, which are simple and powerful.</p>
+<h3 id="basic-template">Basic Template</h3>
+<p>Create Mustache templates in the <code>template/</code> directory.
+Each template is a regular HTML file with special placeholders for dynamic content:</p>
+<code class="language-html"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- template/post.mustache --&gt;</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;!DOCTYPE</span> html<span class="dt">&gt;</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">html</span><span class="ot"> lang</span><span class="op">=</span><span class="st">&quot;en&quot;</span><span class="dt">&gt;</span></span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">head</span><span class="dt">&gt;</span></span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">meta</span><span class="ot"> charset</span><span class="op">=</span><span class="st">&quot;UTF-8&quot;</span><span class="dt">&gt;</span></span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">title</span><span class="dt">&gt;</span>{{meta.title}}<span class="dt">&lt;/</span><span class="kw">title</span><span class="dt">&gt;</span></span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">meta</span><span class="ot"> name</span><span class="op">=</span><span class="st">&quot;viewport&quot;</span><span class="ot"> content</span><span class="op">=</span><span class="st">&quot;width=device-width, initial-scale=1.0&quot;</span><span class="dt">&gt;</span></span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">head</span><span class="dt">&gt;</span></span>
+<span id="9"><a href="#9" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">body</span><span class="dt">&gt;</span></span>
+<span id="10"><a href="#10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">article</span><span class="dt">&gt;</span></span>
+<span id="11"><a href="#11" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&lt;</span><span class="kw">h1</span><span class="dt">&gt;</span>{{meta.title}}<span class="dt">&lt;/</span><span class="kw">h1</span><span class="dt">&gt;</span></span>
+<span id="12"><a href="#12" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&lt;</span><span class="kw">time</span><span class="ot"> datetime</span><span class="op">=</span><span class="st">&quot;{{meta.date}}&quot;</span><span class="dt">&gt;</span>{{meta.date}}<span class="dt">&lt;/</span><span class="kw">time</span><span class="dt">&gt;</span></span>
+<span id="13"><a href="#13" aria-hidden="true" tabindex="-1"></a>        {{{content}}}</span>
+<span id="14"><a href="#14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;/</span><span class="kw">article</span><span class="dt">&gt;</span></span>
+<span id="15"><a href="#15" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">body</span><span class="dt">&gt;</span></span>
+<span id="16"><a href="#16" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">html</span><span class="dt">&gt;</span></span></code></pre></div></code></pre>
+<h3 id="template-variables">Template Variables</h3>
+<p>Every template has access to several built-in variables that you can use to display content:</p>
+<ul>
+<li><code>{{content}}</code> - The rendered HTML from your Markdown content
+</li>
+<li><code>{{meta.*}}</code> - Any field from your post&#39;s YAML frontmatter (e.g., <code>{{meta.title}}</code>, <code>{{meta.date}}</code>)
+</li>
+<li><code>{{posts}}</code> - An array of all posts in your site (useful for creating index pages)
+</li>
+<li>Custom fields added by your plugins
+</li>
+</ul>
+<p>You can access nested frontmatter data using dot notation. For example, if your frontmatter has <code>author: {name: &quot;John&quot;, email: &quot;john@example.com&quot;}</code>, you can use <code>{{meta.author.name}}</code>.</p>
+<h3 id="post-lists">Post Lists</h3>
+<p>Create index pages that list other posts. The <code>{{#posts}}</code> syntax iterates over all posts in your site:</p>
+<code class="language-html"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- template/index.mustache --&gt;</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">ul</span><span class="dt">&gt;</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>{{#posts}}</span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">li</span><span class="dt">&gt;</span></span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&lt;</span><span class="kw">a</span><span class="ot"> href</span><span class="op">=</span><span class="st">&quot;/{{url}}&quot;</span><span class="dt">&gt;</span>{{meta.title}}<span class="dt">&lt;/</span><span class="kw">a</span><span class="dt">&gt;</span></span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>        <span class="dt">&lt;</span><span class="kw">time</span><span class="dt">&gt;</span>{{meta.date}}<span class="dt">&lt;/</span><span class="kw">time</span><span class="dt">&gt;</span></span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;/</span><span class="kw">li</span><span class="dt">&gt;</span></span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a>{{/posts}}</span>
+<span id="9"><a href="#9" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">ul</span><span class="dt">&gt;</span></span></code></pre></div></code></pre>
+<h2 id="assets-and-static-files">Assets and Static Files</h2>
+<h3 id="assets-directory">Assets Directory</h3>
+<p>Files in <code>assets/</code> are copied to the output directory maintaining their structure:</p>
+<ul>
+<li><code>assets/css/style.css</code> → <code>build/css/style.css</code>
+</li>
+<li><code>assets/images/logo.png</code> → <code>build/images/logo.png</code>
+</li>
+</ul>
+<h3 id="copy-directory">Copy Directory</h3>
+<p>Files in <code>copy/</code> are copied directly to the build root:</p>
+<ul>
+<li><code>copy/favicon.ico</code> → <code>build/favicon.ico</code>
+</li>
+<li><code>copy/robots.txt</code> → <code>build/robots.txt</code>
+</li>
+</ul>
+<p>Use this for files that should appear at your site&#39;s root.</p>
+<h2 id="plugins">Plugins</h2>
+<p>Bark&#39;s plugin system lets you extend the build process with custom functionality. To use plugins, you&#39;ll need to create your own Haskell project that uses Bark as a library rather than using the standalone binary.</p>
+<p>Plugins come in two types: preprocessors that modify posts before HTML generation, and postprocessors that modify the final HTML pages.</p>
+<h3 id="pre-processor-plugin">Pre-processor Plugin</h3>
+<p>Preprocessors run before Markdown is converted to HTML, letting you add custom data fields, modify content, or filter posts. Here&#39;s a simple example that adds an author field to all posts:</p>
+<code class="language-haskell"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Bark.Types</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="kw">qualified</span> <span class="dt">Data.HashMap.Strict</span> <span class="kw">as</span> <span class="dt">HM</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="ot">addAuthor ::</span> <span class="dt">Plugin</span></span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>addAuthor <span class="ot">=</span> <span class="dt">BeforeBuild</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>  compilation <span class="ot">&lt;-</span> get</span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> posts <span class="ot">=</span> compilationPosts compilation</span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a>      modifiedPosts <span class="ot">=</span> <span class="fu">map</span> addAuthorField posts</span>
+<span id="9"><a href="#9" aria-hidden="true" tabindex="-1"></a>  put <span class="op">$</span> compilation {compilationPosts <span class="ot">=</span> modifiedPosts}</span>
+<span id="10"><a href="#10" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="11"><a href="#11" aria-hidden="true" tabindex="-1"></a>    addAuthorField post <span class="ot">=</span> </span>
+<span id="12"><a href="#12" aria-hidden="true" tabindex="-1"></a>      post { postData <span class="ot">=</span> HM.insert <span class="st">&quot;author&quot;</span> (<span class="dt">String</span> <span class="st">&quot;Jane Doe&quot;</span>) (postData post) }</span></code></pre></div></code></pre>
+<p>Now all your templates can access <code>{{author}}</code> to display the author name.</p>
+<h3 id="post-processor-plugin">Post-processor Plugin</h3>
+<p>Postprocessors run after HTML generation, allowing you to modify the final output. This is useful for adding analytics code, modifying markup, or injecting additional content:</p>
+<code class="language-haskell"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ot">addFooter ::</span> <span class="dt">Plugin</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a>addFooter <span class="ot">=</span> <span class="dt">AfterBuild</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>  compilation <span class="ot">&lt;-</span> get</span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> pages <span class="ot">=</span> <span class="fu">map</span> appendFooter (compilationPages compilation)</span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>  put <span class="op">$</span> compilation {compilationPages <span class="ot">=</span> pages}</span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a>    appendFooter page <span class="ot">=</span> </span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a>      page { htmlPageContent <span class="ot">=</span> htmlPageContent page <span class="op">&lt;&gt;</span> <span class="st">&quot;\n&lt;footer&gt;© 2024&lt;/footer&gt;&quot;</span> }</span></code></pre></div></code></pre>
+<p>This plugin adds a copyright footer to every generated page.</p>
+<h3 id="complex-plugin-example">Complex Plugin Example</h3>
+<p>Here&#39;s a more sophisticated plugin that generates individual pages for each tag used in your blog posts. This demonstrates working with frontmatter data, creating new pages, and using templates:</p>
+<code class="language-haskell"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ot">generateTagPages ::</span> <span class="dt">Plugin</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a>generateTagPages <span class="ot">=</span> <span class="dt">AfterBuild</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>  compilation <span class="ot">&lt;-</span> get</span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> posts <span class="ot">=</span> compilationPosts compilation</span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>      tags <span class="ot">=</span> extractAllTags posts</span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>      project <span class="ot">=</span> compilationProject compilation</span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a>  tagPages <span class="ot">&lt;-</span> <span class="fu">mapM</span> (createTagPage project posts) tags</span>
+<span id="9"><a href="#9" aria-hidden="true" tabindex="-1"></a>  put <span class="op">$</span> compilation { compilationPages <span class="ot">=</span> compilationPages compilation <span class="op">++</span> tagPages }</span>
+<span id="10"><a href="#10" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="11"><a href="#11" aria-hidden="true" tabindex="-1"></a>    extractAllTags <span class="ot">=</span> nub <span class="op">.</span> <span class="fu">concatMap</span> getPostTags</span>
+<span id="12"><a href="#12" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="13"><a href="#13" aria-hidden="true" tabindex="-1"></a>    getPostTags post <span class="ot">=</span> </span>
+<span id="14"><a href="#14" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> HM.lookup <span class="st">&quot;tags&quot;</span> (fmMetaData <span class="op">$</span> postFrontMatter post) <span class="kw">of</span></span>
+<span id="15"><a href="#15" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Just</span> (<span class="dt">Array</span> tags) <span class="ot">-&gt;</span> mapMaybe extractTag (toList tags)</span>
+<span id="16"><a href="#16" aria-hidden="true" tabindex="-1"></a>        _ <span class="ot">-&gt;</span> []</span>
+<span id="17"><a href="#17" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="18"><a href="#18" aria-hidden="true" tabindex="-1"></a>    extractTag (<span class="dt">String</span> t) <span class="ot">=</span> <span class="dt">Just</span> t</span>
+<span id="19"><a href="#19" aria-hidden="true" tabindex="-1"></a>    extractTag _ <span class="ot">=</span> <span class="dt">Nothing</span></span>
+<span id="20"><a href="#20" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="21"><a href="#21" aria-hidden="true" tabindex="-1"></a>    createTagPage project posts tag <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="22"><a href="#22" aria-hidden="true" tabindex="-1"></a>      <span class="kw">let</span> taggedPosts <span class="ot">=</span> <span class="fu">filter</span> (hasTag tag) posts</span>
+<span id="23"><a href="#23" aria-hidden="true" tabindex="-1"></a>          templatePath <span class="ot">=</span> projectTemplateDir project <span class="op">&lt;/&gt;</span> <span class="st">&quot;tag.mustache&quot;</span></span>
+<span id="24"><a href="#24" aria-hidden="true" tabindex="-1"></a>          tagData <span class="ot">=</span> HM.fromList [(<span class="st">&quot;tag&quot;</span>, <span class="dt">String</span> tag), (<span class="st">&quot;posts&quot;</span>, <span class="dt">Array</span> <span class="op">$</span> Vector.fromList <span class="op">$</span> <span class="fu">map</span> postToValue taggedPosts)]</span>
+<span id="25"><a href="#25" aria-hidden="true" tabindex="-1"></a>      html <span class="ot">&lt;-</span> template2Html templatePath (<span class="dt">Object</span> tagData)</span>
+<span id="26"><a href="#26" aria-hidden="true" tabindex="-1"></a>      <span class="kw">let</span> fileName <span class="ot">=</span> T.toLower (T.replace <span class="st">&quot; &quot;</span> <span class="st">&quot;-&quot;</span> tag) <span class="op">&lt;&gt;</span> <span class="st">&quot;.html&quot;</span></span>
+<span id="27"><a href="#27" aria-hidden="true" tabindex="-1"></a>          outPath <span class="ot">=</span> projectOutDir project <span class="op">&lt;/&gt;</span> <span class="st">&quot;tags&quot;</span> <span class="op">&lt;/&gt;</span> T.unpack fileName</span>
+<span id="28"><a href="#28" aria-hidden="true" tabindex="-1"></a>      <span class="fu">return</span> <span class="op">$</span> <span class="dt">HTMLPage</span> <span class="dt">Nothing</span> html outPath</span></code></pre></div></code></pre>
+<h2 id="custom-binary">Custom Binary</h2>
+<p>Create your own Haskell project with Bark as a dependency:</p>
+<code class="language-haskell"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="co">-- site.hs</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="ot">{-# LANGUAGE OverloadedStrings #-}</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Bark.CLI</span> (<span class="dt">BarkCLI</span>(..), builtinPlugins, doCommand, parseCommand)</span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">System.Environment</span> (getArgs)</span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a><span class="co">-- Import your custom plugins</span></span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a><span class="ot">myPlugins ::</span> [<span class="dt">Plugin</span>]</span>
+<span id="9"><a href="#9" aria-hidden="true" tabindex="-1"></a>myPlugins <span class="ot">=</span> [addAuthor, addFooter, generateTagPages]</span>
+<span id="10"><a href="#10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="11"><a href="#11" aria-hidden="true" tabindex="-1"></a><span class="ot">main ::</span> <span class="dt">IO</span> ()</span>
+<span id="12"><a href="#12" aria-hidden="true" tabindex="-1"></a>main <span class="ot">=</span> <span class="kw">do</span></span>
+<span id="13"><a href="#13" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> allPlugins <span class="ot">=</span> builtinPlugins <span class="op">++</span> myPlugins</span>
+<span id="14"><a href="#14" aria-hidden="true" tabindex="-1"></a>      cli <span class="ot">=</span> <span class="dt">BarkCLI</span> allPlugins</span>
+<span id="15"><a href="#15" aria-hidden="true" tabindex="-1"></a>  maybeCommand <span class="ot">&lt;-</span> parseCommand <span class="op">&lt;$&gt;</span> getArgs</span>
+<span id="16"><a href="#16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">maybe</span> (<span class="fu">return</span> ()) (doCommand cli) maybeCommand</span></code></pre></div></code></pre>
+<h3 id="building-your-site-binary">Building Your Site Binary</h3>
+<p>Add Bark as a dependency in your <code>cabal</code> project:</p>
+<code class="language-cabal"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a>executable site</span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a>  main-is: site.hs</span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>  build-depends: </span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>    base &gt;= 4.7 &amp;&amp; &lt; 5,</span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>    bark,</span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>    text,</span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a>    containers</span></code></pre></div></code></pre>
+<p>Build and install:</p>
+<code class="language-bash"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">cabal</span> install exe:site <span class="at">--installdir</span><span class="op">=</span><span class="va">$(</span><span class="bu">pwd</span><span class="va">)</span> <span class="at">--overwrite-policy</span><span class="op">=</span>always</span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="ex">./site</span> build</span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="ex">./site</span> watch</span></code></pre></div></code></pre>
+<h2 id="built-in-features">Built-in Features</h2>
+<h3 id="markdown-processing">Markdown Processing</h3>
+<ul>
+<li>CommonMark specification compliance
+</li>
+<li>GitHub Flavored Markdown extensions
+</li>
+<li>Automatic syntax highlighting for code blocks
+</li>
+<li>Smart punctuation and typography
+</li>
+</ul>
+<h3 id="development-workflow">Development Workflow</h3>
+<ul>
+<li>Incremental rebuilds during watch mode
+</li>
+<li>Static file serving on localhost:8080
+</li>
+<li>Live reload when files change
+</li>
+<li>Comprehensive error reporting
+</li>
+</ul>
+<h3 id="performance">Performance</h3>
+<ul>
+<li>Only rebuilds changed files during watch mode
+</li>
+<li>Efficient asset copying
+</li>
+<li>Parallel processing where possible
+</li>
+</ul>
+<h2 id="commands">Commands</h2>
+<h3 id="build">build</h3>
+<p>Generate the complete site:</p>
+<code class="language-bash"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">bark</span> build <span class="pp">[</span><span class="ss">path</span><span class="pp">]</span></span></code></pre></div></code></pre>
+<p>If no path is provided, uses the current directory.</p>
+<h3 id="watch">watch</h3>
+<p>Build the site and watch for changes:</p>
+<code class="language-bash"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">bark</span> watch <span class="pp">[</span><span class="ss">path</span><span class="pp">]</span></span></code></pre></div></code></pre>
+<p>Serves the site on <code>http://localhost:8080</code> and rebuilds automatically when files change.</p>
+<h3 id="init">init</h3>
+<p>Create a new Bark project:</p>
+<code class="language-bash"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ex">bark</span> init <span class="pp">[</span><span class="ss">path</span><span class="pp">]</span></span></code></pre></div></code></pre>
+<p>Creates the directory structure and configuration file. Uses current directory if no path provided.</p>
+<h2 id="library-usage">Library Usage</h2>
+<p>Import Bark modules in your Haskell project:</p>
+<code class="language-haskell"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Bark.Core</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Bark.Types</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Bark.CLI</span></span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="kw">import</span> <span class="dt">Bark.FrontMatter</span></span></code></pre></div></code></pre>
+<p>Key types and functions:</p>
+<ul>
+<li><code>Project</code> - Represents a Bark project with all its paths
+</li>
+<li><code>Post</code> - A markdown file with frontmatter and metadata
+</li>
+<li><code>Plugin</code> - Custom processors for posts or pages
+</li>
+<li><code>buildProject</code> - Build a project programmatically
+</li>
+<li><code>readBarkProject</code> - Load a project from a directory
+</li>
+</ul>
+<h2 id="examples">Examples</h2>
+<h3 id="blog-with-archive">Blog with Archive</h3>
+<p>Create an archive page listing all posts:</p>
+<code class="language-markdown"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="an">template:</span><span class="co"> archive</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> Archive</span></span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a><span class="fu"># All Posts</span></span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a>This page lists all posts in the site.</span></code></pre></div></code></pre>
+<code class="language-html"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="co">&lt;!-- template/archive.mustache --&gt;</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">h1</span><span class="dt">&gt;</span>{{meta.title}}<span class="dt">&lt;/</span><span class="kw">h1</span><span class="dt">&gt;</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;</span><span class="kw">div</span><span class="ot"> class</span><span class="op">=</span><span class="st">&quot;archive&quot;</span><span class="dt">&gt;</span></span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>{{#posts}}</span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;</span><span class="kw">article</span><span class="dt">&gt;</span></span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">h2</span><span class="dt">&gt;&lt;</span><span class="kw">a</span><span class="ot"> href</span><span class="op">=</span><span class="st">&quot;/{{url}}&quot;</span><span class="dt">&gt;</span>{{meta.title}}<span class="dt">&lt;/</span><span class="kw">a</span><span class="dt">&gt;&lt;/</span><span class="kw">h2</span><span class="dt">&gt;</span></span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&lt;</span><span class="kw">time</span><span class="dt">&gt;</span>{{meta.date}}<span class="dt">&lt;/</span><span class="kw">time</span><span class="dt">&gt;</span></span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a>    {{#meta.description}}<span class="dt">&lt;</span><span class="kw">p</span><span class="dt">&gt;</span>{{meta.description}}<span class="dt">&lt;/</span><span class="kw">p</span><span class="dt">&gt;</span>{{/meta.description}}</span>
+<span id="9"><a href="#9" aria-hidden="true" tabindex="-1"></a>  <span class="dt">&lt;/</span><span class="kw">article</span><span class="dt">&gt;</span></span>
+<span id="10"><a href="#10" aria-hidden="true" tabindex="-1"></a>{{/posts}}</span>
+<span id="11"><a href="#11" aria-hidden="true" tabindex="-1"></a><span class="dt">&lt;/</span><span class="kw">div</span><span class="dt">&gt;</span></span></code></pre></div></code></pre>
+<h3 id="navigation-menu">Navigation Menu</h3>
+<p>Add navigation to all pages:</p>
+<code class="language-haskell"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="ot">addNavigation ::</span> <span class="dt">Plugin</span></span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a>addNavigation <span class="ot">=</span> <span class="dt">BeforeBuild</span> <span class="op">$</span> <span class="kw">do</span></span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a>  compilation <span class="ot">&lt;-</span> get</span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a>  <span class="kw">let</span> posts <span class="ot">=</span> compilationPosts compilation</span>
+<span id="5"><a href="#5" aria-hidden="true" tabindex="-1"></a>      navItems <span class="ot">=</span> <span class="fu">filter</span> isNavItem posts</span>
+<span id="6"><a href="#6" aria-hidden="true" tabindex="-1"></a>      navData <span class="ot">=</span> <span class="dt">Array</span> <span class="op">$</span> Vector.fromList <span class="op">$</span> <span class="fu">map</span> toNavItem navItems</span>
+<span id="7"><a href="#7" aria-hidden="true" tabindex="-1"></a>      addNav post <span class="ot">=</span> post { postData <span class="ot">=</span> HM.insert <span class="st">&quot;navigation&quot;</span> navData (postData post) }</span>
+<span id="8"><a href="#8" aria-hidden="true" tabindex="-1"></a>  put <span class="op">$</span> compilation { compilationPosts <span class="ot">=</span> <span class="fu">map</span> addNav posts }</span>
+<span id="9"><a href="#9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">where</span></span>
+<span id="10"><a href="#10" aria-hidden="true" tabindex="-1"></a>    isNavItem post <span class="ot">=</span> </span>
+<span id="11"><a href="#11" aria-hidden="true" tabindex="-1"></a>      <span class="kw">case</span> HM.lookup <span class="st">&quot;nav&quot;</span> (fmMetaData <span class="op">$</span> postFrontMatter post) <span class="kw">of</span></span>
+<span id="12"><a href="#12" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Just</span> (<span class="dt">Bool</span> <span class="dt">True</span>) <span class="ot">-&gt;</span> <span class="dt">True</span></span>
+<span id="13"><a href="#13" aria-hidden="true" tabindex="-1"></a>        _ <span class="ot">-&gt;</span> <span class="dt">False</span></span>
+<span id="14"><a href="#14" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="15"><a href="#15" aria-hidden="true" tabindex="-1"></a>    toNavItem post <span class="ot">=</span> <span class="dt">Object</span> <span class="op">$</span> HM.fromList</span>
+<span id="16"><a href="#16" aria-hidden="true" tabindex="-1"></a>      [ (<span class="st">&quot;title&quot;</span>, <span class="dt">String</span> <span class="op">$</span> fromMaybe <span class="st">&quot;Untitled&quot;</span> <span class="op">$</span> getTitle post)</span>
+<span id="17"><a href="#17" aria-hidden="true" tabindex="-1"></a>      , (<span class="st">&quot;url&quot;</span>, <span class="dt">String</span> <span class="op">$</span> T.pack <span class="op">$</span> postUrl post)</span>
+<span id="18"><a href="#18" aria-hidden="true" tabindex="-1"></a>      ]</span></code></pre></div></code></pre>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="build-errors">Build Errors</h3>
+<p>If builds fail, check:</p>
+<ol>
+<li>YAML frontmatter syntax is valid
+</li>
+<li>Required template files exist
+</li>
+<li>Template field is specified in frontmatter
+</li>
+<li>No circular template dependencies
+</li>
+</ol>
+<h3 id="plugin-issues">Plugin Issues</h3>
+<p>Common plugin problems:</p>
+<ul>
+<li>Import the correct Bark modules
+</li>
+<li>Use <code>BeforeBuild</code> for post processing, <code>AfterBuild</code> for HTML processing
+</li>
+<li>Handle <code>Maybe</code> values from frontmatter fields
+</li>
+<li>Update compilation state with <code>put</code>
+</li>
+</ul>
+<h3 id="performance-1">Performance</h3>
+<p>For large sites:</p>
+<ul>
+<li>Use incremental builds with <code>bark watch</code>
+</li>
+<li>Minimize plugin complexity
+</li>
+<li>Consider using <code>copy/</code> for large static assets
+</li>
+<li>Profile custom plugins for bottlenecks
+</li>
+</ul>
+<h2 id="contributing">Contributing</h2>
+<p>Bark is open source. Submit issues and pull requests on <a href="https://github.com/srijan-paul/bark">GitHub</a>.</p>
+<h3 id="development-setup">Development Setup</h3>
+<code class="language-bash"><div class="sourceCode"><pre class="sourceCode"><code class="sourceCode"><span id="1"><a href="#1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/srijan-paul/bark</span>
+<span id="2"><a href="#2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> bark</span>
+<span id="3"><a href="#3" aria-hidden="true" tabindex="-1"></a><span class="ex">cabal</span> build</span>
+<span id="4"><a href="#4" aria-hidden="true" tabindex="-1"></a><span class="ex">cabal</span> test</span></code></pre></div></code></pre>
+<h3 id="architecture">Architecture</h3>
+<ul>
+<li><code>Bark.Core</code> - Main build pipeline
+</li>
+<li><code>Bark.Types</code> - Core data types
+</li>
+<li><code>Bark.CLI</code> - Command line interface
+</li>
+<li><code>Bark.FrontMatter</code> - YAML parsing
+</li>
+<li><code>Bark.Processors.*</code> - Built-in plugins
+</li>
+</ul>
 
-  </div>
+            </div>
+        </main>
+    </div>
 
-  <!--<script>hljs.highlightAll();</script>-->
+    <script>
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Highlight current section in navigation
+        function updateActiveNav() {
+            const sections = document.querySelectorAll('h2[id], h3[id]');
+            const navLinks = document.querySelectorAll('.sidebar a[href^="#"]');
+            
+            let current = '';
+            const scrollPos = window.scrollY + 100;
+
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (scrollPos >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', updateActiveNav);
+        updateActiveNav();
+    </script>
 </body>
-
 </html>
