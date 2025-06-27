@@ -8,7 +8,9 @@ module Bark.Internal.IOUtil
   )
 where
 
-import Control.Monad.Except (ExceptT, filterM, forM_, lift, throwError)
+import Control.Monad (filterM, forM_)
+import Control.Monad.Except (ExceptT, throwError)
+import Control.Monad.Trans (lift)
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
