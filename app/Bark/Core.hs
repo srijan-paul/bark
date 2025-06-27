@@ -60,7 +60,7 @@ import qualified Network.HTTP.Types as Http
 import qualified Network.Wai as Wai
 import qualified Network.Wai.Application.Static as Wai
 import qualified Network.Wai.Handler.Warp as Warp
-import System.Directory (createDirectoryIfMissing, doesDirectoryExist, makeAbsolute)
+import System.Directory (copyFile, createDirectoryIfMissing, doesDirectoryExist, makeAbsolute)
 import System.Directory.Recursive (getFilesRecursive)
 import qualified System.FSNotify as FS
 import System.FilePath
@@ -260,6 +260,26 @@ copyCopyDir project = liftIO $ do
     copyDir = projectCopyDir project
     outDir = projectOutDir project
 
+-- | Copy a single asset file incrementally
+copySingleAsset :: Project -> FilePath -> ExceptT ErrorMessage IO ()
+copySingleAsset project assetPath = liftIO $ do
+  let rootDir = projectRoot project
+      outDir = projectOutDir project  
+      relPath = makeRelative rootDir assetPath
+      destPath = outDir </> relPath
+  createDirectoryIfMissing True $ takeDirectory destPath
+  copyFile assetPath destPath
+
+-- | Copy a single file from copy directory incrementally  
+copySingleCopyFile :: Project -> FilePath -> ExceptT ErrorMessage IO ()
+copySingleCopyFile project copyPath = liftIO $ do
+  let copyDir = projectCopyDir project
+      outDir = projectOutDir project
+      relPath = makeRelative copyDir copyPath
+      destPath = outDir </> relPath
+  createDirectoryIfMissing True $ takeDirectory destPath
+  copyFile copyPath destPath
+
 buildProjectImpl :: Project -> [Plugin] -> [Post] -> ExceptT ErrorMessage IO ()
 buildProjectImpl project plugins posts = do
   -- apply all the pre-processors that modify posts *before* they are compiled.
@@ -290,8 +310,8 @@ buildProjectImpl project plugins posts = do
     preprocessors = processorOfPlugin <$> filter isPrePlugin plugins
     postprocessors = processorOfPlugin <$> filter (not . isPrePlugin) plugins
 
-    applyProcessor :: Compilation -> Processor () -> ExceptT ErrorMessage IO Compilation
-    applyProcessor = flip execStateT
+applyProcessor :: Compilation -> Processor () -> ExceptT ErrorMessage IO Compilation
+applyProcessor = flip execStateT
 
 -- | Add a list of posts to the build time data of each post.
 addPostListToPostData :: Project -> [Post] -> ExceptT ErrorMessage IO [Post]
@@ -312,6 +332,36 @@ buildProject :: Project -> [Plugin] -> ExceptT ErrorMessage IO ()
 buildProject project plugins = do
   posts <- getPosts project
   buildProjectImpl project plugins posts
+
+-- | Build a single post incrementally by file path
+buildSinglePost :: Project -> [Plugin] -> FilePath -> ExceptT ErrorMessage IO ()
+buildSinglePost project plugins filePath = do
+  post <- getPostFromMdfile project filePath
+  -- For simplicity, we apply plugins to just this post
+  -- Note: This is a simplified approach - ideally we'd need all posts for cross-references
+  compilation <- foldM applyProcessor (newCompilation project [post] []) preprocessors
+  let processedPosts = compilationPosts compilation
+  case processedPosts of
+    [processedPost] -> do
+      -- Add posts list data (empty for incremental builds to keep it simple)
+      let postWithData = processedPost { postData = postData processedPost <> HM.fromList [("posts", Mustache.Array mempty)] }
+      page <- buildPost project postWithData
+      finalPage <- foldM (\p processor -> do
+        let htmlComp = newCompilation project [] [p]
+        result <- applyProcessor htmlComp processor  
+        case compilationPages result of
+          [finalP] -> return finalP
+          _ -> return p
+        ) page postprocessors
+      liftIO $ writeHtmlPage finalPage
+    _ -> liftEither $ Left "Unexpected number of processed posts"
+  where
+    isPrePlugin :: Plugin -> Bool
+    isPrePlugin (BeforeBuild _) = True
+    isPrePlugin _ = False
+    
+    preprocessors = processorOfPlugin <$> filter isPrePlugin plugins
+    postprocessors = processorOfPlugin <$> filter (not . isPrePlugin) plugins
 
 printWatchMessage :: T.Text -> T.Text -> IO ()
 printWatchMessage time filePath = do
@@ -390,7 +440,19 @@ watchProjectWith plugins project = FS.withManager $ \mgr -> do
           isInBuildDir = projectOutDir project `isPrefixOf` path
 
       unless isInBuildDir $ do
-        result <- runExceptT $ buildProject project plugins
+        result <- runExceptT $ handleFileChange path
         case result of
           Left errorMessage -> printErrorMessage (T.pack errorMessage)
           Right () -> printWatchMessage time (T.pack relPath)
+      where
+        handleFileChange filePath
+          | sourceDir `isPrefixOf` filePath && takeExtension filePath == ".md" = 
+              buildSinglePost project plugins filePath
+          | assetsDir `isPrefixOf` filePath = 
+              copySingleAsset project filePath
+          | copyDir `isPrefixOf` filePath = 
+              copySingleCopyFile project filePath
+          | templateDir `isPrefixOf` filePath = 
+              buildProject project plugins  -- Template changes affect all posts
+          | otherwise = 
+              buildProject project plugins  -- Fallback to full rebuild
