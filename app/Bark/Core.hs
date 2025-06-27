@@ -77,6 +77,7 @@ import qualified Text.Colour as Color
 import qualified Text.Mustache as Mustache
 import qualified Text.Mustache.Types as Mustache
 
+-- | Safely get the last element of a list.
 safeLast :: [a] -> Maybe a
 safeLast [] = Nothing
 safeLast xs = Just $ last xs
@@ -90,6 +91,7 @@ defaultConfig =
   \template: template\n\
   \copy: copy\n"
 
+-- | Initialize a new Bark project at the given path with default structure and config.
 initProject :: FilePath -> ExceptT ErrorMessage IO Project
 initProject path = do
   liftIO $ createDirectoryIfMissing True path
@@ -107,6 +109,7 @@ initProject path = do
 
   return project
 
+-- | Read and parse the bark.yml configuration file from the given project path.
 readBarkConfig :: FilePath -> ExceptT ErrorMessage IO ProjectConfig
 readBarkConfig path = do
   result <- liftIO $ decodeFileEither path
@@ -241,8 +244,9 @@ getPosts project = do
   let markdownFiles = filter ((`elem` [".markdown", ".md"]) . takeExtension) files
   mapM (getPostFromMdfile project) markdownFiles
 
-copyAssets :: Project -> ExceptT ErrorMessage IO ()
-copyAssets project = liftIO $ do
+-- | Copy all files from the project's assets directory to the output directory.
+copyAssets :: Project -> IO ()
+copyAssets project = do
   hasAssets <- doesDirectoryExist assetsDir
   when hasAssets $
     copyDirectory assetsDir (outDir </> makeRelative rootDir assetsDir)
@@ -251,8 +255,9 @@ copyAssets project = liftIO $ do
     rootDir = projectRoot project
     outDir = projectOutDir project
 
-copyCopyDir :: Project -> ExceptT ErrorMessage IO ()
-copyCopyDir project = liftIO $ do
+-- | Copy all files from the project's copy directory to the output directory.
+copyStaticFiles :: Project -> IO ()
+copyStaticFiles project = do
   hasCopyDir <- doesDirectoryExist copyDir
   when hasCopyDir $
     copyDirectory copyDir outDir
@@ -280,43 +285,50 @@ copySingleCopyFile project copyPath = liftIO $ do
   createDirectoryIfMissing True $ takeDirectory destPath
   copyFile copyPath destPath
 
-buildProjectImpl :: Project -> [Plugin] -> [Post] -> ExceptT ErrorMessage IO ()
-buildProjectImpl project plugins posts = do
-  -- apply all the pre-processors that modify posts *before* they are compiled.
+-- | Apply preprocessing plugins to posts before HTML conversion.
+applyPreprocessingPlugins :: Project -> [Plugin] -> [Post] -> ExceptT ErrorMessage IO [Post]
+applyPreprocessingPlugins project plugins posts = do
+  let preprocessors = processorOfPlugin <$> filter isPrePlugin plugins
   compilation <- foldM applyProcessor (newCompilation project posts []) preprocessors
-  let processedProject = compilationProject compilation
-      processedPosts = compilationPosts compilation
-
-  -- add a "posts" field to the build time data of every post.
-  modifiedPosts <- addPostListToPostData processedProject processedPosts
-  -- Convert markdown posts to HTML pages.
-  pages <- mapM (buildPost project) modifiedPosts
-  -- Apply all the post-processors that modify HTML pages after they're built.
-  let htmlCompilation = compilation {compilationPages = pages}
-  finalCompilation <- foldM applyProcessor htmlCompilation postprocessors
-
-  -- collect all the modified HTML pages, then write to disk
-  let processedPages = compilationPages finalCompilation
-  mapM_ (liftIO . writeHtmlPage) processedPages
-
-  copyAssets project
-  copyCopyDir project
+  return $ compilationPosts compilation
   where
-    -- \| returns true if a plugin should be applied *before* a project has been compiled.
-    isPrePlugin :: Plugin -> Bool
     isPrePlugin (BeforeBuild _) = True
     isPrePlugin _ = False
 
-    preprocessors = processorOfPlugin <$> filter isPrePlugin plugins
-    postprocessors = processorOfPlugin <$> filter (not . isPrePlugin) plugins
+-- | Convert posts to HTML pages and apply postprocessing plugins.
+buildAndProcessPages :: Project -> [Plugin] -> [Post] -> ExceptT ErrorMessage IO [HTMLPage]
+buildAndProcessPages project plugins posts = do
+  let postprocessors = processorOfPlugin <$> filter (not . isPrePlugin) plugins
+  pages <- mapM (buildPost project) posts
+  let htmlCompilation = newCompilation project [] pages
+  finalCompilation <- foldM applyProcessor htmlCompilation postprocessors
+  return $ compilationPages finalCompilation
+  where
+    isPrePlugin (BeforeBuild _) = True
+    isPrePlugin _ = False
+
+-- | Copy all project assets and static files to output directory.
+copyProjectFiles :: Project -> ExceptT ErrorMessage IO ()
+copyProjectFiles project = liftIO $ do
+  copyAssets project
+  copyStaticFiles project
+
+-- | Core build pipeline: applies plugins, converts posts to HTML, and copies assets.
+buildPipeline :: Project -> [Plugin] -> [Post] -> ExceptT ErrorMessage IO ()
+buildPipeline project plugins posts = do
+  processedPosts <- applyPreprocessingPlugins project plugins posts
+  enrichedPosts <- enrichPostsWithPostsList project processedPosts
+  finalPages <- buildAndProcessPages project plugins enrichedPosts
+  mapM_ (liftIO . writeHtmlPage) finalPages
+  copyProjectFiles project
 
 applyProcessor :: Compilation -> Processor () -> ExceptT ErrorMessage IO Compilation
 applyProcessor = flip execStateT
 
--- | Add a list of posts to the build time data of each post.
-addPostListToPostData :: Project -> [Post] -> ExceptT ErrorMessage IO [Post]
-addPostListToPostData _ posts' = do
-  -- Every gets has an additional data field called `posts`.
+-- | Inject a 'posts' array into each post's template data for cross-references.
+enrichPostsWithPostsList :: Project -> [Post] -> ExceptT ErrorMessage IO [Post]
+enrichPostsWithPostsList _ posts' = do
+  -- Every post has an additional data field called `posts`.
   -- It is an array of all posts in the project.
   let allPosts = Mustache.Array $ Vector.fromList $ map getPostData posts'
       posts = map (\p -> p {postData = HM.insert "posts" allPosts (postData p)}) posts'
@@ -331,7 +343,7 @@ addPostListToPostData _ posts' = do
 buildProject :: Project -> [Plugin] -> ExceptT ErrorMessage IO ()
 buildProject project plugins = do
   posts <- getPosts project
-  buildProjectImpl project plugins posts
+  buildPipeline project plugins posts
 
 -- | Build a single post incrementally by file path
 buildSinglePost :: Project -> [Plugin] -> FilePath -> ExceptT ErrorMessage IO ()
@@ -406,6 +418,7 @@ redirectDirectoryToIndex app req sendResp =
               ""
         else app req sendResp
 
+-- | Watch a project for file changes and rebuild incrementally. Also serves the site on port 8080.
 watchProjectWith :: [Plugin] -> Project -> IO ()
 watchProjectWith plugins project = FS.withManager $ \mgr -> do
   _ <- FS.watchTree mgr sourceDir filterEvent callback

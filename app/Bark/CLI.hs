@@ -26,6 +26,7 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Text as T
 import System.Directory.Internal.Prelude (exitFailure)
 
+-- | Safely get the first element of a list.
 safeHead :: [a] -> Maybe a
 safeHead [] = Nothing
 safeHead (x : _) = Just x
@@ -46,6 +47,7 @@ data Command
   | Init FilePath
   deriving (Show)
 
+-- | Load a Bark project from the given path, exiting on failure.
 getProject :: FilePath -> IO Project
 getProject path = do
   project <- runExceptT $ readBarkProject path
@@ -55,6 +57,7 @@ getProject path = do
       exitFailure
     Right p -> return p
 
+-- | Execute a CLI command with the given plugins.
 doCommand :: BarkCLI -> Command -> IO ()
 doCommand (BarkCLI plugins) (Build path) = do
   project <- getProject path
@@ -72,19 +75,13 @@ doCommand _ (Init path) = do
     Left err -> printErrorMessage $ T.pack $ "Failed to initialize project: " ++ err
     Right _ -> printInfoMessage "Project initialized successfully."
 
+-- | Parse command line arguments into a Command.
 parseCommand :: [String] -> Maybe Command
-parseCommand args = do
-  case (safeHead args, tail args) of
-    (Just commandStr, rest) -> do
-      ctor <- commandCtor commandStr
-      return $ ctor (parseCommandArg rest)
+parseCommand [] = Nothing
+parseCommand (cmd:args) = do
+  let path = fromMaybe "." (safeHead args)
+  case cmd of
+    "build" -> Just (Build path)
+    "watch" -> Just (Watch path)
+    "init" -> Just (Init path)
     _ -> Nothing
-  where
-    commandCtor :: String -> Maybe (String -> Command)
-    commandCtor "build" = Just Build
-    commandCtor "watch" = Just Watch
-    commandCtor "init" = Just Init
-    commandCtor _ = Nothing
-
-    parseCommandArg :: [String] -> String
-    parseCommandArg xs = fromMaybe "." (safeHead xs)

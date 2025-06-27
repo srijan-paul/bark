@@ -70,6 +70,7 @@ highlightSnippets :: HTMLPage -> Either ErrorMessage HTMLPage
 highlightSnippets page@(HTMLPage _ html _) = do
   right (\newHtml -> page {htmlPageContent = newHtml}) (highlightSnippets' html)
 
+-- | Plugin that applies syntax highlighting to code blocks in HTML pages.
 highlightPlugin :: Plugin
 highlightPlugin = AfterBuild $ do
   compilation <- get

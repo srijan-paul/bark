@@ -50,6 +50,7 @@ tryReadFileT = tryReadFileWith TIO.readFile
 tryReadFileBS :: FilePath -> ResultT IO BS.ByteString
 tryReadFileBS = tryReadFileWith BS.readFile
 
+-- | Recursively copy all files from source directory to destination directory.
 copyDirectory :: FilePath -> FilePath -> IO ()
 copyDirectory srcDir dstDir = do
   dirsAndFiles <- getFilesRecursive srcDir

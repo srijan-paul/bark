@@ -43,6 +43,7 @@ instance FromJSON PostFrontMatter where
   -- frontmatter must be an object. Anything else results in parse failure.
   parseJSON other = typeMismatch "Object" other
 
+-- | Parse YAML frontmatter from a markdown file's content.
 parseFrontMatter :: FilePath -> BS.ByteString -> Either ErrorMessage PostFrontMatter
 parseFrontMatter filePath contents = do
   case parseYamlFrontmatter contents of
@@ -50,11 +51,13 @@ parseFrontMatter filePath contents = do
     Fail _ _ errMsg -> Left $ "Failed to parse YAML frontmatter for " ++ filePath ++ ": " ++ errMsg
     Partial _ -> Left $ "Unexpected end of input when trying to parse frontmatter for " ++ filePath
 
+-- | Convert YAML Object to Mustache Object for template rendering.
 toMustacheObject :: Object -> Mustache.Object
 toMustacheObject o =
   let toMustachePair (k, v) = (toText k, toMustacheValue v)
    in HM.fromList $ map toMustachePair (toList o)
 
+-- | Convert YAML Value to Mustache Value for template rendering.
 toMustacheValue :: Value -> Mustache.Value
 toMustacheValue (Array a) = Mustache.Array $ fmap toMustacheValue a
 toMustacheValue (String text) = Mustache.String text
