@@ -300,7 +300,7 @@ buildAndProcessPages :: Project -> [Plugin] -> [Post] -> ExceptT ErrorMessage IO
 buildAndProcessPages project plugins posts = do
   let postprocessors = processorOfPlugin <$> filter (not . isPrePlugin) plugins
   pages <- mapM (buildPost project) posts
-  let htmlCompilation = newCompilation project [] pages
+  let htmlCompilation = newCompilation project posts pages
   finalCompilation <- foldM applyProcessor htmlCompilation postprocessors
   return $ compilationPages finalCompilation
   where
